@@ -14,7 +14,6 @@ function authHeader(env: Env): string {
 
 function toCalDavDate(d: Date): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  // e.g. "20260608T090000Z"
 }
 
 export async function fetchBusy(
@@ -36,7 +35,8 @@ export async function fetchBusy(
   });
 
   if (!res.ok) {
-    throw new Error(`CalDAV REPORT failed: ${res.status}`);
+    const rbody = await res.text().catch(() => "");
+    throw new Error(`CalDAV REPORT failed: ${res.status} url=${res.url} www-auth=${res.headers.get("www-authenticate")} body=${rbody.slice(0, 200)}`);
   }
 
   const xml = await res.text();
@@ -110,8 +110,6 @@ export function buildIcal(params: {
   ].join("\r\n");
 }
 
-// ── XML builders / parsers ────────────────────────────────────────────────────
-
 function buildReportXml(start: Date, end: Date): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -141,7 +139,6 @@ function buildReportXml(start: Date, end: Date): string {
 
 export function parseMultiStatusIntervals(xml: string): Interval[] {
   const intervals: Interval[] = [];
-
   const calDataPattern = /<[^:>]*:?calendar-data[^>]*>([\s\S]*?)<\/[^:>]*:?calendar-data>/g;
   let match;
   while ((match = calDataPattern.exec(xml)) !== null) {
@@ -149,7 +146,6 @@ export function parseMultiStatusIntervals(xml: string): Interval[] {
     const interval = parseVevent(ical);
     if (interval) intervals.push(interval);
   }
-
   return intervals;
 }
 
