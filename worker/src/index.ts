@@ -25,6 +25,14 @@ export default {
       if (url.pathname === "/api/book" && request.method === "POST") {
         return await handleBook(request, env);
       }
+      if (url.pathname === "/api/debug-env" && request.method === "GET") {
+        return json({
+          caldav_username: env.CALDAV_USERNAME,
+          caldav_password_length: env.CALDAV_PASSWORD?.length ?? 0,
+          calendar_nils: env.CALDAV_CALENDAR_NILS,
+          calendar_ohana: env.CALDAV_CALENDAR_OHANA,
+        });
+      }
       return json({ error: "not found" }, 404);
     } catch (err) {
       console.error(err);
