@@ -4,7 +4,8 @@ import { ConflictError } from "./types.js";
 const BASE_URL = "https://caldav.fastmail.com";
 
 function calendarUrl(env: Env, calendarName: string): string {
-  return `${BASE_URL}/dav/calendars/user/${env.CALDAV_USERNAME}/${calendarName}/`;
+  const user = encodeURIComponent(env.CALDAV_USERNAME);
+  return `${BASE_URL}/dav/calendars/user/${user}/${calendarName}/`;
 }
 
 function authHeader(env: Env): string {
@@ -141,7 +142,6 @@ function buildReportXml(start: Date, end: Date): string {
 export function parseMultiStatusIntervals(xml: string): Interval[] {
   const intervals: Interval[] = [];
 
-  // Extract all calendar-data blocks
   const calDataPattern = /<[^:>]*:?calendar-data[^>]*>([\s\S]*?)<\/[^:>]*:?calendar-data>/g;
   let match;
   while ((match = calDataPattern.exec(xml)) !== null) {
@@ -187,18 +187,14 @@ function parseVevent(ical: string): Interval | null {
 }
 
 function parseIcalDate(raw: string): Date | null {
-  // DATE format: 20260608 → all-day, treat as 00:00 UTC
   if (/^\d{8}$/.test(raw)) {
     return new Date(`${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}T00:00:00Z`);
   }
-  // DATETIME UTC: 20260608T090000Z
   if (/^\d{8}T\d{6}Z$/.test(raw)) {
     return new Date(
       `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}T${raw.slice(9, 11)}:${raw.slice(11, 13)}:${raw.slice(13, 15)}Z`
     );
   }
-  // DATETIME local (TZID handled by server expansion): treat as if UTC for simplicity
-  // Fastmail expands to UTC in REPORT responses
   if (/^\d{8}T\d{6}$/.test(raw)) {
     return new Date(
       `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}T${raw.slice(9, 11)}:${raw.slice(11, 13)}:${raw.slice(13, 15)}Z`
@@ -208,7 +204,6 @@ function parseIcalDate(raw: string): Date | null {
 }
 
 function parseDuration(raw: string): number {
-  // Simple parser for PT#H#M#S and P#D
   let ms = 0;
   const days = /(\d+)D/.exec(raw);
   const hours = /(\d+)H/.exec(raw);
