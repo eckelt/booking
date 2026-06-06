@@ -86,8 +86,8 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
       }
       cursor.setDate(cursor.getDate() + 1);
     }
-  } catch {
-    return json({ error: "calendar unavailable" }, 500);
+  } catch (err) {
+    return json({ error: "calendar unavailable", detail: String(err) }, 500);
   }
 
   return json({ slots });
