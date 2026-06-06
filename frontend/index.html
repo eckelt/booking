@@ -1,11 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=/30min/">
-<title>Redirecting…</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book time with Nils Eckelt</title>
+  <style>
+    :root {
+      --bg: #f9f9f9;
+      --surface: #fff;
+      --text: #111;
+      --muted: #666;
+      --border: #ddd;
+      --primary: #0070f3;
+      --primary-hover: #005bb5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f0f;
+        --surface: #1c1c1e;
+        --text: #f0f0f0;
+        --muted: #888;
+        --border: #2c2c2e;
+        --primary: #3b82f6;
+        --primary-hover: #2563eb;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    h1 {
+      font-size: clamp(1.5rem, 4vw, 2.25rem);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+      text-align: center;
+      font-size: 1rem;
+    }
+    .cards {
+      display: flex;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 2rem 2.5rem;
+      text-decoration: none;
+      color: var(--text);
+      min-width: 180px;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      cursor: pointer;
+    }
+    .card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+      transform: translateY(-2px);
+    }
+    .card-icon {
+      font-size: 2.25rem;
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+    .card-desc {
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+  </style>
 </head>
 <body>
-<p><a href="/30min/">Book a 30-minute call</a></p>
+  <h1>Book time with Nils Eckelt</h1>
+  <p class="subtitle">Choose a meeting duration to see available slots.</p>
+  <div class="cards">
+    <a class="card" href="/30min/">
+      <span class="card-icon">&#x1F552;</span>
+      <span class="card-title">30-minute call</span>
+      <span class="card-desc">Quick sync or intro</span>
+    </a>
+    <a class="card" href="/60min/">
+      <span class="card-icon">&#x1F55B;</span>
+      <span class="card-title">60-minute call</span>
+      <span class="card-desc">Deep dive or workshop</span>
+    </a>
+  </div>
 </body>
 </html>
