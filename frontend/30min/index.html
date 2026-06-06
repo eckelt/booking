@@ -94,6 +94,127 @@
   .jitsi-link { display: inline-block; margin-top: 1rem; padding: 10px 20px; background: #1a73e8; color: #fff; border-radius: 8px; text-decoration: none; font-size: 0.95rem; }
   .booking-summary-line { margin-bottom: 1.5rem; color: #444; font-size: 0.95rem; }
   .booking-summary-line strong { color: #111; }
+
+  /* ── Dark theme: Monokai Pro ── */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:            #2D2A2E;
+      --surface:       #403E41;
+      --text:          #FCFCFA;
+      --muted:         #939293;
+      --border:        #5B5A5E;
+      --primary:       #AB9DF2;
+      --primary-hover: #9D8FE0;
+      --danger:        #FF6188;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .subtitle { color: var(--muted); }
+
+    /* Calendar nav */
+    .cal-nav { color: var(--muted); }
+    .cal-nav:hover { background: var(--surface); }
+
+    .cal-dow { color: var(--muted); }
+
+    /* Calendar day states */
+    .cal-day { color: var(--border); }
+    .cal-day.other-month { color: var(--border); opacity: 0.5; }
+    .cal-day.past { color: var(--border); }
+    .cal-day.today { color: var(--text); }
+    .cal-day.today::after { background: var(--primary); }
+
+    .cal-day.available {
+      background: var(--primary);
+      color: var(--bg);
+    }
+    .cal-day.available:hover {
+      background: var(--primary-hover);
+    }
+    .cal-day.available.today { background: var(--primary); color: var(--bg); }
+    .cal-day.available.today::after { background: var(--bg); }
+    .cal-day.selected {
+      background: var(--primary);
+      color: var(--bg);
+      box-shadow: 0 2px 8px rgba(171, 157, 242, 0.45);
+    }
+
+    /* Slot nav buttons */
+    .slots-nav-btn {
+      border-color: var(--border);
+      color: var(--muted);
+    }
+    .slots-nav-btn:hover:not(:disabled) {
+      background: var(--surface);
+      border-color: var(--muted);
+    }
+
+    .slots-col-header { color: var(--muted); }
+    .slots-col-header.no-slots-header { color: var(--border); }
+
+    /* Slot buttons */
+    .slot-btn {
+      border-color: var(--primary);
+      background: transparent;
+      color: var(--primary);
+    }
+    .slot-btn:hover {
+      background: color-mix(in srgb, var(--primary) 20%, transparent);
+    }
+    .slot-btn.selected {
+      background: var(--primary);
+      color: var(--bg);
+    }
+
+    .no-slots-msg { color: var(--border); }
+    .slots-loading { color: var(--muted); }
+
+    /* Form */
+    label { color: var(--text); }
+    input, textarea {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    input:focus, textarea:focus { border-color: var(--primary); }
+
+    .btn {
+      background: var(--primary);
+      color: var(--bg);
+    }
+    .btn:hover { background: var(--primary-hover); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .btn-secondary:hover {
+      background: color-mix(in srgb, var(--primary) 20%, transparent);
+    }
+
+    .error { color: var(--danger); }
+
+    .success-box {
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    .success-box h2 { color: var(--primary); }
+
+    .jitsi-link {
+      background: var(--primary);
+      color: var(--bg);
+    }
+    .jitsi-link:hover { background: var(--primary-hover); }
+
+    .booking-summary-line { color: var(--muted); }
+    .booking-summary-line strong { color: var(--text); }
+  }
 </style>
 </head>
 <body>
