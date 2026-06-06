@@ -86,12 +86,13 @@ export function buildIcal(params: {
       hour: "2-digit", minute: "2-digit", second: "2-digit",
       hour12: false,
     }).format(d);
-    return s.replace(/[-: ]/g, "").replace("T", "T");
+    // sv-SE produces "2026-06-08 10:30:00" — strip dashes/colons, replace space with T
+    return s.replace(/[-:]/g, "").replace(" ", "T");
   };
 
   const now = fmt(new Date());
-  const dtStart = fmtLocal(params.start).replace(" ", "T");
-  const dtEnd = fmtLocal(params.end).replace(" ", "T");
+  const dtStart = fmtLocal(params.start);
+  const dtEnd = fmtLocal(params.end);
 
   return [
     "BEGIN:VCALENDAR",
