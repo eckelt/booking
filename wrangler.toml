@@ -1,5 +1,6 @@
 account_id = "a0c5e93c44c4e217f2b167fd0beb4b39"
 name = "booking-worker"
+account_id = "a0c5e93c44c4e217f2b167fd0beb4b39"
 main = "worker/src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
