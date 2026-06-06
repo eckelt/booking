@@ -60,7 +60,10 @@ export async function putEvent(
   });
 
   if (res.status === 412) throw new ConflictError();
-  if (!res.ok) throw new Error(`CalDAV PUT failed: ${res.status}`);
+  if (!res.ok) {
+    const rbody = await res.text().catch(() => "");
+    throw new Error(`CalDAV PUT failed: ${res.status} url=${url} body=${rbody.slice(0, 300)}`);
+  }
 }
 
 export function buildIcal(params: {
@@ -108,6 +111,8 @@ export function buildIcal(params: {
     "END:VCALENDAR",
   ].join("\r\n");
 }
+
+// ── XML builders / parsers ──
 
 function buildReportXml(start: Date, end: Date): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
