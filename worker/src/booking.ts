@@ -48,7 +48,6 @@ export async function createBooking(
   const durationMs = req.duration * 60 * 1000;
   const end = new Date(start.getTime() + durationMs);
 
-  // Re-check availability before writing
   const dayStart = new Date(start);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(start);
@@ -86,7 +85,8 @@ export async function createBooking(
 
   await putEvent(env, uid, ical, fetcher);
 
-  await sendEmails(env, {
+  // Email is best-effort — a failure must not roll back the booking
+  sendEmails(env, {
     uid,
     start,
     end,
@@ -95,7 +95,7 @@ export async function createBooking(
     notes: req.notes ?? "",
     jitsiUrl,
     icalAttachment: ical,
-  });
+  }).catch((err) => console.error("sendEmails failed:", err));
 
   return {
     uid,
