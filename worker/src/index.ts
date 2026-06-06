@@ -25,45 +25,13 @@ export default {
       if (url.pathname === "/api/book" && request.method === "POST") {
         return await handleBook(request, env);
       }
-      if (url.pathname === "/api/debug-discover" && request.method === "GET") {
-        return await handleDiscover(env);
-      }
       return json({ error: "not found" }, 404);
     } catch (err) {
       console.error(err);
-      return json({ error: "internal error", detail: String(err) }, 500);
+      return json({ error: "internal error" }, 500);
     }
   },
 };
-
-async function handleDiscover(env: Env): Promise<Response> {
-  const user = encodeURIComponent(env.CALDAV_USERNAME);
-  const auth = "Basic " + btoa(`${env.CALDAV_USERNAME}:${env.CALDAV_PASSWORD}`);
-
-  const homeUrl = `https://caldav.fastmail.com/dav/calendars/user/${user}/`;
-  const body = `<?xml version="1.0" encoding="UTF-8"?>
-<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
-  <d:prop>
-    <d:displayname/>
-    <d:resourcetype/>
-  </d:prop>
-</d:propfind>`;
-
-  const res = await fetch(homeUrl, {
-    method: "PROPFIND",
-    headers: {
-      Authorization: auth,
-      "Content-Type": "application/xml; charset=utf-8",
-      Depth: "1",
-    },
-    body,
-  });
-
-  const text = await res.text();
-  return new Response(JSON.stringify({ status: res.status, url: homeUrl, body: text }), {
-    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-  });
-}
 
 async function handleSlots(url: URL, env: Env): Promise<Response> {
   const durationMin = parseInt(url.searchParams.get("duration") ?? "30");
@@ -116,7 +84,8 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
       cursor.setDate(cursor.getDate() + 1);
     }
   } catch (err) {
-    return json({ error: "calendar unavailable", detail: String(err) }, 500);
+    console.error(err);
+    return json({ error: "calendar unavailable" }, 500);
   }
 
   return json({ slots });
