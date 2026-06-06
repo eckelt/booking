@@ -1,0 +1,14 @@
+name = "booking-worker"
+main = "worker/src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+OWNER_NAME = "Nils Eckelt"
+OWNER_EMAIL = "nils@ecke.lt"
+CALDAV_CALENDAR_NILS = "Nils"
+CALDAV_CALENDAR_OHANA = "Ohana"
+
+[[routes]]
+pattern = "book.ecke.lt/api/*"
+zone_name = "ecke.lt"

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book a 30-minute call with Nils Eckelt</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f9f9f9; color: #111; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 540px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .subtitle { color: #666; margin-bottom: 2rem; }
+  .step { display: none; }
+  .step.active { display: block; }
+  .date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 1.5rem; }
+  .date-btn { padding: 8px 4px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.8rem; text-align: center; transition: background 0.15s; }
+  .date-btn:disabled { color: #bbb; background: #f0f0f0; cursor: default; }
+  .date-btn.selected { background: #0070f3; color: #fff; border-color: #0070f3; }
+  .date-btn:not(:disabled):hover { border-color: #0070f3; }
+  .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+  .slot-btn { padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.9rem; text-align: center; transition: background 0.15s; }
+  .slot-btn.selected { background: #0070f3; color: #fff; border-color: #0070f3; }
+  .slot-btn:hover { border-color: #0070f3; }
+  label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.9rem; }
+  input, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; margin-bottom: 1rem; font-family: inherit; }
+  input:focus, textarea:focus { outline: none; border-color: #0070f3; }
+  textarea { resize: vertical; min-height: 80px; }
+  .btn { display: inline-block; padding: 12px 24px; background: #0070f3; color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; text-decoration: none; }
+  .btn:hover { background: #0060df; }
+  .btn-secondary { background: transparent; color: #0070f3; border: 1px solid #0070f3; margin-right: 8px; }
+  .btn-secondary:hover { background: #f0f7ff; }
+  .error { color: #d00; margin-bottom: 1rem; font-size: 0.9rem; }
+  .loading { color: #666; font-style: italic; }
+  .success-box { background: #f0fff4; border: 1px solid #68d391; border-radius: 8px; padding: 1.5rem; }
+  .success-box h2 { color: #276749; margin-bottom: 0.5rem; }
+  .jitsi-link { display: inline-block; margin-top: 1rem; padding: 10px 20px; background: #0070f3; color: #fff; border-radius: 6px; text-decoration: none; }
+  .day-header { font-size: 0.7rem; color: #999; text-align: center; padding-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Book a 30-minute call</h1>
+  <p class="subtitle">with Nils Eckelt</p>
+
+  <!-- Step 1: pick a date -->
+  <div class="step active" id="step-date">
+    <p style="margin-bottom:1rem;color:#444">Select a date:</p>
+    <div class="date-grid" id="date-grid"></div>
+    <div id="date-error" class="error"></div>
+  </div>
+
+  <!-- Step 2: pick a time slot -->
+  <div class="step" id="step-slot">
+    <p style="margin-bottom:1rem;color:#444">Available times on <strong id="selected-date-label"></strong>:</p>
+    <div id="slots-loading" class="loading">Loading…</div>
+    <div class="slots" id="slots-grid"></div>
+    <div id="slot-error" class="error"></div>
+    <button class="btn btn-secondary" onclick="goBack('step-date', 'step-slot')">← Back</button>
+  </div>
+
+  <!-- Step 3: enter details -->
+  <div class="step" id="step-form">
+    <p style="margin-bottom:1.5rem;color:#444">Booking <strong id="booking-summary"></strong></p>
+    <label for="name">Your name</label>
+    <input type="text" id="name" placeholder="Jane Doe" maxlength="100">
+    <label for="email">Your email</label>
+    <input type="email" id="email" placeholder="jane@example.com">
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" placeholder="What would you like to discuss?" maxlength="1000"></textarea>
+    <div id="form-error" class="error"></div>
+    <button class="btn btn-secondary" onclick="goBack('step-slot', 'step-form')">← Back</button>
+    <button class="btn" id="confirm-btn" onclick="submitBooking()">Confirm booking</button>
+  </div>
+
+  <!-- Step 4: success -->
+  <div class="step" id="step-success">
+    <div class="success-box">
+      <h2>Booking confirmed!</h2>
+      <p id="success-details"></p>
+      <a class="jitsi-link" id="jitsi-link" href="#" target="_blank" rel="noopener">Join video call</a>
+      <p style="margin-top:1rem;color:#555;font-size:0.9rem">Check your email for a calendar invite.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const DURATION = 30;
+const API = "/api";
+
+let selectedDate = null;
+let selectedSlot = null;
+let allSlots = [];
+
+// ── Date grid ─────────────────────────────────────────────────────────────────
+function buildDateGrid() {
+  const grid = document.getElementById("date-grid");
+  const dayNames = ["Mo","Tu","We","Th","Fr","Sa","Su"];
+  dayNames.forEach(d => {
+    const h = document.createElement("div");
+    h.className = "day-header";
+    h.textContent = d;
+    grid.appendChild(h);
+  });
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const workdays = [1,2,3,4,5]; // Mon-Fri
+
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const dow = d.getDay(); // 0=Sun
+    const isoMon = dow === 0 ? 6 : dow - 1; // 0=Mon for grid alignment
+
+    // Add offset spacer for first day
+    if (i === 0) {
+      for (let s = 0; s < isoMon; s++) {
+        const spacer = document.createElement("div");
+        grid.appendChild(spacer);
+      }
+    }
+
+    const btn = document.createElement("button");
+    btn.className = "date-btn";
+    btn.textContent = d.getDate();
+    btn.title = d.toLocaleDateString("en-GB", {weekday:"long",day:"numeric",month:"long"});
+    if (!workdays.includes(dow)) {
+      btn.disabled = true;
+    } else {
+      btn.onclick = () => selectDate(d, btn);
+    }
+    grid.appendChild(btn);
+  }
+}
+
+function selectDate(date, btn) {
+  document.querySelectorAll(".date-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  selectedDate = date;
+  loadSlots(date);
+}
+
+// ── Slots ─────────────────────────────────────────────────────────────────────
+async function loadSlots(date) {
+  const iso = date.toISOString().slice(0,10);
+  document.getElementById("selected-date-label").textContent =
+    date.toLocaleDateString("en-GB", {weekday:"long",day:"numeric",month:"long"});
+  showStep("step-slot");
+
+  const loading = document.getElementById("slots-loading");
+  const grid = document.getElementById("slots-grid");
+  const err = document.getElementById("slot-error");
+  loading.style.display = "block";
+  grid.innerHTML = "";
+  err.textContent = "";
+
+  try {
+    const res = await fetch(`${API}/slots?duration=${DURATION}&from=${iso}&to=${iso}`);
+    const data = await res.json();
+    loading.style.display = "none";
+    allSlots = data.slots || [];
+    if (allSlots.length === 0) {
+      err.textContent = "No slots available on this day.";
+      return;
+    }
+    allSlots.forEach(slot => {
+      const btn = document.createElement("button");
+      btn.className = "slot-btn";
+      btn.textContent = formatTime(slot.start);
+      btn.onclick = () => selectSlot(slot, btn);
+      grid.appendChild(btn);
+    });
+  } catch {
+    loading.style.display = "none";
+    err.textContent = "Could not load slots. Please try again.";
+  }
+}
+
+function selectSlot(slot, btn) {
+  document.querySelectorAll(".slot-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  selectedSlot = slot;
+  const label = `${formatDate(slot.start)} at ${formatTime(slot.start)} – ${formatTime(slot.end)}`;
+  document.getElementById("booking-summary").textContent = label;
+  showStep("step-form");
+}
+
+// ── Booking form ──────────────────────────────────────────────────────────────
+async function submitBooking() {
+  const name = document.getElementById("name").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const notes = document.getElementById("notes").value.trim();
+  const err = document.getElementById("form-error");
+  err.textContent = "";
+
+  if (!name) { err.textContent = "Please enter your name."; return; }
+  if (!email || !email.includes("@")) { err.textContent = "Please enter a valid email."; return; }
+
+  const btn = document.getElementById("confirm-btn");
+  btn.disabled = true;
+  btn.textContent = "Confirming…";
+
+  try {
+    const res = await fetch(`${API}/book`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ start: selectedSlot.start, duration: DURATION, name, email, notes }),
+    });
+    const data = await res.json();
+
+    if (res.status === 409) {
+      err.textContent = "This slot was just taken. Please go back and choose another time.";
+      btn.disabled = false;
+      btn.textContent = "Confirm booking";
+      return;
+    }
+    if (!res.ok) {
+      err.textContent = data.error || "Something went wrong. Please try again.";
+      btn.disabled = false;
+      btn.textContent = "Confirm booking";
+      return;
+    }
+
+    document.getElementById("success-details").textContent =
+      `${formatDate(selectedSlot.start)} at ${formatTime(selectedSlot.start)} – ${formatTime(selectedSlot.end)}`;
+    document.getElementById("jitsi-link").href = data.jitsiUrl;
+    showStep("step-success");
+  } catch {
+    err.textContent = "Network error. Please try again.";
+    btn.disabled = false;
+    btn.textContent = "Confirm booking";
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showStep(id) {
+  document.querySelectorAll(".step").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function goBack(show, hide) {
+  document.getElementById(hide).classList.remove("active");
+  document.getElementById(show).classList.add("active");
+}
+
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString("de-DE", {
+    timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    timeZone: "Europe/Berlin", weekday: "long", day: "numeric", month: "long",
+  });
+}
+
+buildDateGrid();
+</script>
+</body>
+</html>
