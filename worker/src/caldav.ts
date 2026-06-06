@@ -4,8 +4,7 @@ import { ConflictError } from "./types.js";
 const BASE_URL = "https://caldav.fastmail.com";
 
 function calendarUrl(env: Env, calendarName: string): string {
-  const user = encodeURIComponent(env.CALDAV_USERNAME);
-  return `${BASE_URL}/dav/calendars/user/${user}/${calendarName}/`;
+  return `${BASE_URL}/dav/calendars/user/${env.CALDAV_USERNAME}/${calendarName}/`;
 }
 
 function authHeader(env: Env): string {
