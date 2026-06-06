@@ -1,4 +1,5 @@
 name = "booking-worker"
+account_id = "DEINE_ACCOUNT_ID"  # Cloudflare Dashboard → ecke.lt → rechte Spalte → Account ID
 main = "worker/src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
