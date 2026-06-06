@@ -22,27 +22,24 @@ export async function sendEmails(env: Env, params: EmailParams): Promise<void> {
 
 async function sendConfirmationToBooker(env: Env, p: EmailParams): Promise<void> {
   const subject = `Booking confirmed: ${p.end.getTime() - p.start.getTime() === 30 * 60000 ? 30 : 60} min with ${env.OWNER_NAME} on ${formatDate(p.start)}`;
-  const text = buildBookerText(env, p);
-  const html = buildBookerHtml(env, p);
-  await sendSmtp(env, {
-    from: `${env.OWNER_NAME} <${env.OWNER_EMAIL}>`,
-    to: `${p.name} <${p.bookerEmail}>`,
-    replyTo: env.OWNER_EMAIL,
+  await sendMailChannels({
+    from: { email: env.OWNER_EMAIL, name: env.OWNER_NAME },
+    to: [{ email: p.bookerEmail, name: p.name }],
+    replyTo: { email: env.OWNER_EMAIL },
     subject,
-    text,
-    html,
+    text: buildBookerText(env, p),
+    html: buildBookerHtml(env, p),
     icsAttachment: { filename: "booking.ics", content: p.icalAttachment },
   });
 }
 
 async function sendNotificationToOwner(env: Env, p: EmailParams): Promise<void> {
   const subject = `New booking: ${p.name} — ${formatDate(p.start)} ${formatTime(p.start)}`;
-  const text = buildOwnerText(env, p);
-  await sendSmtp(env, {
-    from: `book.ecke.lt <${env.OWNER_EMAIL}>`,
-    to: env.OWNER_EMAIL,
+  await sendMailChannels({
+    from: { email: env.OWNER_EMAIL, name: "book.ecke.lt" },
+    to: [{ email: env.OWNER_EMAIL }],
     subject,
-    text,
+    text: buildOwnerText(env, p),
   });
 }
 
@@ -80,7 +77,7 @@ Jitsi: ${p.jitsiUrl}
 Notes:
 ${p.notes || "—"}
 
-The event has been added to your ${env.CALDAV_CALENDAR_NILS} calendar.`;
+The event has been added to your calendar.`;
 }
 
 function buildBookerHtml(env: Env, p: EmailParams): string {
@@ -125,116 +122,54 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// ── SMTP ─────────────────────────────────────────────────────────────────────
+// ── MailChannels ────────────────────────────────────────────────────────────────
 
-interface SmtpMessage {
-  from: string;
-  to: string;
-  replyTo?: string;
+interface MailChannelsMessage {
+  from: { email: string; name?: string };
+  to: { email: string; name?: string }[];
+  replyTo?: { email: string };
   subject: string;
   text: string;
   html?: string;
   icsAttachment?: { filename: string; content: string };
 }
 
-async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
-  // Cloudflare Workers support outbound TCP via the connect() API (nodejs_compat)
-  // We use port 465 (SMTPS — implicit TLS)
-  const { connect } = await import("cloudflare:sockets");
-  const socket = connect({ hostname: "smtp.fastmail.com", port: 465 }, { secureTransport: "on" });
+async function sendMailChannels(msg: MailChannelsMessage): Promise<void> {
+  const personalizations = [{ to: msg.to }];
 
-  const writer = socket.writable.getWriter();
-  const reader = socket.readable.getReader();
-
-  const send = async (line: string) => {
-    await writer.write(new TextEncoder().encode(line + "\r\n"));
-  };
-
-  const readLine = async (): Promise<string> => {
-    let buf = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += new TextDecoder().decode(value);
-      if (buf.includes("\r\n")) break;
-    }
-    return buf.trim();
-  };
-
-  await readLine(); // 220 greeting
-
-  await send(`EHLO book.ecke.lt`);
-  let ehlo = "";
-  while (true) {
-    const line = await readLine();
-    ehlo += line;
-    if (line.startsWith("250 ")) break;
-  }
-  void ehlo;
-
-  // AUTH PLAIN
-  const authStr = btoa(`\x00${env.SMTP_USERNAME}\x00${env.SMTP_PASSWORD}`);
-  await send(`AUTH PLAIN ${authStr}`);
-  await readLine(); // 235
-
-  await send(`MAIL FROM:<${env.OWNER_EMAIL}>`);
-  await readLine();
-
-  const toAddr = msg.to.match(/<(.+)>/)?.[1] ?? msg.to;
-  await send(`RCPT TO:<${toAddr}>`);
-  await readLine();
-
-  await send("DATA");
-  await readLine(); // 354
-
-  const rawMsg = buildRawMessage(msg);
-  await send(rawMsg);
-  await send(".");
-  await readLine(); // 250
-
-  await send("QUIT");
-  await reader.cancel();
-  await writer.close();
-}
-
-function buildRawMessage(msg: SmtpMessage): string {
-  const boundary = `boundary_${Date.now()}`;
-  const lines: string[] = [
-    `From: ${msg.from}`,
-    `To: ${msg.to}`,
-    msg.replyTo ? `Reply-To: ${msg.replyTo}` : "",
-    `Subject: ${msg.subject}`,
-    `MIME-Version: 1.0`,
-  ].filter(Boolean);
-
-  if (!msg.html && !msg.icsAttachment) {
-    lines.push("Content-Type: text/plain; charset=utf-8", "", msg.text);
-  } else {
-    lines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`, "");
-    lines.push(`--${boundary}`);
-    if (msg.html) {
-      const innerBoundary = `inner_${Date.now()}`;
-      lines.push(`Content-Type: multipart/alternative; boundary="${innerBoundary}"`, "");
-      lines.push(`--${innerBoundary}`, "Content-Type: text/plain; charset=utf-8", "", msg.text, "");
-      lines.push(`--${innerBoundary}`, "Content-Type: text/html; charset=utf-8", "", msg.html, "");
-      lines.push(`--${innerBoundary}--`);
-    } else {
-      lines.push("Content-Type: text/plain; charset=utf-8", "", msg.text);
-    }
-
-    if (msg.icsAttachment) {
-      lines.push(`--${boundary}`);
-      lines.push(
-        `Content-Type: text/calendar; charset=utf-8; name="${msg.icsAttachment.filename}"`,
-        `Content-Disposition: attachment; filename="${msg.icsAttachment.filename}"`,
-        `Content-Transfer-Encoding: base64`,
-        "",
-        btoa(msg.icsAttachment.content)
-      );
-    }
-
-    lines.push(`--${boundary}--`);
+  const content: { type: string; value: string }[] = [
+    { type: "text/plain", value: msg.text },
+  ];
+  if (msg.html) {
+    content.push({ type: "text/html", value: msg.html });
   }
 
-  return lines.join("\r\n");
+  const attachments: { filename: string; content: string; type: string }[] = [];
+  if (msg.icsAttachment) {
+    attachments.push({
+      filename: msg.icsAttachment.filename,
+      content: btoa(msg.icsAttachment.content),
+      type: "text/calendar",
+    });
+  }
+
+  const body: Record<string, unknown> = {
+    personalizations,
+    from: msg.from,
+    subject: msg.subject,
+    content,
+  };
+  if (msg.replyTo) body["reply_to"] = msg.replyTo;
+  if (attachments.length > 0) body["attachments"] = attachments;
+
+  const res = await fetch("https://api.mailchannels.net/tx/v1/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok && res.status !== 202) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`MailChannels failed: ${res.status} ${detail.slice(0, 200)}`);
+  }
 }
