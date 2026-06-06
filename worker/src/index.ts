@@ -64,9 +64,6 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
           ? from
           : window.start;
 
-        const dayEnd = new Date(cursor);
-        dayEnd.setHours(23, 59, 59, 999);
-
         const [nilsBusy, ohanaBusy] = await Promise.all([
           fetchBusy(env, env.CALDAV_CALENDAR_NILS, window.start, window.end),
           fetchBusy(env, env.CALDAV_CALENDAR_OHANA, window.start, window.end),
@@ -86,8 +83,8 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
       }
       cursor.setDate(cursor.getDate() + 1);
     }
-  } catch {
-    return json({ error: "calendar unavailable" }, 500);
+  } catch (err) {
+    return json({ error: "calendar unavailable", detail: String(err) }, 500);
   }
 
   return json({ slots });
@@ -127,7 +124,6 @@ function json(data: unknown, status = 200): Response {
 }
 
 function toLocalIso(d: Date): string {
-  // Returns ISO 8601 with Europe/Berlin offset
   const offset = getOffsetMinutes(d, "Europe/Berlin");
   const sign = offset >= 0 ? "+" : "-";
   const absOffset = Math.abs(offset);
