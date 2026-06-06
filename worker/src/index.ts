@@ -31,7 +31,7 @@ export default {
       return json({ error: "not found" }, 404);
     } catch (err) {
       console.error(err);
-      return json({ error: "internal error" }, 500);
+      return json({ error: "internal error", detail: String(err) }, 500);
     }
   },
 };
@@ -40,7 +40,6 @@ async function handleDiscover(env: Env): Promise<Response> {
   const user = encodeURIComponent(env.CALDAV_USERNAME);
   const auth = "Basic " + btoa(`${env.CALDAV_USERNAME}:${env.CALDAV_PASSWORD}`);
 
-  // PROPFIND on calendar home to list all calendars
   const homeUrl = `https://caldav.fastmail.com/dav/calendars/user/${user}/`;
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
