@@ -39,6 +39,7 @@ jobs:
         with:
           node-version: 20
       - run: npm install -g wrangler
-      - run: wrangler pages deploy frontend/ --project-name booking --account-id a0c5e93c44c4e217f2b167fd0beb4b39
+      - run: wrangler pages deploy frontend/ --project-name booking
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a0c5e93c44c4e217f2b167fd0beb4b39
