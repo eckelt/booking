@@ -36,7 +36,8 @@ export async function fetchBusy(
   });
 
   if (!res.ok) {
-    throw new Error(`CalDAV REPORT failed: ${res.status}`);
+    const body = await res.text().catch(() => "");
+    throw new Error(`CalDAV REPORT failed: ${res.status} url=${res.url} www-auth=${res.headers.get("www-authenticate")} body=${body.slice(0, 200)}`);
   }
 
   const xml = await res.text();
