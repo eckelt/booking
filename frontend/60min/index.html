@@ -13,18 +13,20 @@
       --border: #ddd;
       --primary: #0070f3;
       --primary-hover: #005bb5;
+      --on-primary: #fff;
       --danger: #dc2626;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0f0f0f;
-        --surface: #1c1c1e;
-        --text: #f0f0f0;
-        --muted: #888;
-        --border: #2c2c2e;
-        --primary: #3b82f6;
-        --primary-hover: #2563eb;
-        --danger: #f87171;
+        --bg: #2D2A2E;
+        --surface: #403E41;
+        --text: #FCFCFA;
+        --muted: #939293;
+        --border: #5B5A5E;
+        --primary: #AB9DF2;
+        --primary-hover: #9D8FE0;
+        --on-primary: #2D2A2E;
+        --danger: #FF6188;
       }
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,16 +45,9 @@
       align-items: center;
       gap: 1rem;
     }
-    header a {
-      color: var(--primary);
-      text-decoration: none;
-      font-size: 0.875rem;
-    }
+    header a { color: var(--primary); text-decoration: none; font-size: 0.875rem; }
     header a:hover { text-decoration: underline; }
-    header h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
+    header h1 { font-size: 1.1rem; font-weight: 600; }
     .layout {
       display: grid;
       grid-template-columns: 320px 1fr;
@@ -62,263 +57,87 @@
       padding: 0 1rem;
       align-items: start;
     }
-    @media (max-width: 639px) {
-      .layout {
-        grid-template-columns: 1fr;
-        margin: 1rem auto;
-      }
-    }
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 1rem;
-    }
-    .calendar-panel {
-      padding: 1.25rem;
-    }
-    .slots-panel {
-      padding: 1.25rem;
-      margin-left: 1rem;
-    }
-    @media (max-width: 639px) {
-      .slots-panel {
-        margin-left: 0;
-        margin-top: 1rem;
-      }
-    }
+    @media (max-width: 639px) { .layout { grid-template-columns: 1fr; margin: 1rem auto; } }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
+    .calendar-panel { padding: 1.25rem; }
+    .slots-panel { padding: 1.25rem; margin-left: 1rem; }
+    @media (max-width: 639px) { .slots-panel { margin-left: 0; margin-top: 1rem; } }
 
-    /* Calendar */
-    .cal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-    }
-    .cal-title {
-      font-weight: 600;
-      font-size: 1rem;
-    }
+    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .cal-title { font-weight: 600; font-size: 1rem; }
     .cal-nav {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 0.4rem;
-      color: var(--text);
-      cursor: pointer;
-      padding: 0.25rem 0.6rem;
-      font-size: 1rem;
-      line-height: 1;
-      transition: background 0.1s;
+      background: none; border: 1px solid var(--border); border-radius: 0.4rem;
+      color: var(--text); cursor: pointer; padding: 0.25rem 0.6rem;
+      font-size: 1rem; line-height: 1; transition: background 0.1s;
     }
     .cal-nav:hover { background: var(--bg); }
-    .cal-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 2px;
-    }
-    .cal-day-label {
-      text-align: center;
-      font-size: 0.75rem;
-      color: var(--muted);
-      padding: 0.25rem 0;
-      font-weight: 600;
-    }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-day-label { text-align: center; font-size: 0.75rem; color: var(--muted); padding: 0.25rem 0; font-weight: 600; }
     .cal-cell {
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 0.4rem;
-      font-size: 0.875rem;
-      cursor: default;
-      color: var(--muted);
-      transition: background 0.1s, color 0.1s;
-      user-select: none;
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      border-radius: 0.4rem; font-size: 0.875rem; cursor: default; color: var(--muted);
+      transition: background 0.1s, color 0.1s; user-select: none;
     }
     .cal-cell.empty { background: transparent; }
     .cal-cell.disabled { color: var(--muted); opacity: 0.4; }
-    .cal-cell.bookable {
-      color: var(--text);
-      cursor: pointer;
-    }
-    .cal-cell.bookable:hover {
-      background: color-mix(in srgb, var(--primary) 15%, transparent);
-      color: var(--primary);
-    }
-    .cal-cell.selected {
-      background: var(--primary) !important;
-      color: #fff !important;
-    }
-    .cal-cell.today {
-      font-weight: 700;
-    }
+    .cal-cell.bookable { color: var(--text); cursor: pointer; }
+    .cal-cell.bookable:hover { background: color-mix(in srgb, var(--primary) 15%, transparent); color: var(--primary); }
+    .cal-cell.selected { background: var(--primary) !important; color: var(--on-primary) !important; }
+    .cal-cell.today { font-weight: 700; }
 
-    /* Two-column slot area */
-    .slots-nav {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.25rem;
-      margin-bottom: 0.75rem;
-    }
+    .slots-nav { display: flex; align-items: flex-start; gap: 0.25rem; margin-bottom: 0.75rem; }
     .slots-nav-arrow {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 0.4rem;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 1.2rem;
-      line-height: 1;
-      padding: 0.3rem 0.55rem;
-      flex-shrink: 0;
-      margin-top: 0.1rem;
-      transition: background 0.1s;
+      background: none; border: 1px solid var(--border); border-radius: 0.4rem;
+      color: var(--text); cursor: pointer; font-size: 1.2rem; line-height: 1;
+      padding: 0.3rem 0.55rem; flex-shrink: 0; margin-top: 0.1rem; transition: background 0.1s;
     }
     .slots-nav-arrow:hover:not(:disabled) { background: var(--bg); }
     .slots-nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
-    .slots-day-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.5rem;
-      flex: 1;
-    }
-    .slots-day-col {
-      min-width: 0;
-    }
-    .slots-day-header {
-      text-align: center;
-      margin-bottom: 0.5rem;
-    }
-    .slots-day-weekday {
-      font-weight: 600;
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .slots-day-num {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.2;
-    }
-    .slots-col-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
+    .slots-day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; flex: 1; }
+    .slots-day-col { min-width: 0; }
+    .slots-day-header { text-align: center; margin-bottom: 0.5rem; }
+    .slots-day-weekday { font-weight: 600; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .slots-day-num { font-size: 1.1rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .slots-col-list { display: flex; flex-direction: column; gap: 0.35rem; }
     .slot-btn {
-      background: transparent;
-      border: 1.5px solid var(--border);
-      border-radius: 999px;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 0.85rem;
-      padding: 0.45rem 0.5rem;
-      text-align: center;
-      width: 100%;
-      transition: border-color 0.1s, background 0.1s, color 0.1s;
+      background: transparent; border: 1.5px solid var(--border); border-radius: 999px;
+      color: var(--text); cursor: pointer; font-size: 0.85rem; padding: 0.45rem 0.5rem;
+      text-align: center; width: 100%; transition: border-color 0.1s, background 0.1s, color 0.1s;
     }
-    @media (max-width: 639px) {
-      .slot-btn { font-size: 0.78rem; padding: 0.4rem 0.25rem; }
-    }
-    .slot-btn:hover {
-      border-color: var(--primary);
-      background: color-mix(in srgb, var(--primary) 12%, transparent);
-      color: var(--primary);
-    }
-    .slot-btn.selected {
-      border-color: var(--primary);
-      background: var(--primary);
-      color: #fff;
-      font-weight: 600;
-    }
-    .slots-loading, .slots-empty {
-      color: var(--muted);
-      font-size: 0.85rem;
-      text-align: center;
-      padding: 0.75rem 0;
-    }
+    @media (max-width: 639px) { .slot-btn { font-size: 0.78rem; padding: 0.4rem 0.25rem; } }
+    .slot-btn:hover { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+    .slot-btn.selected { border-color: var(--primary); background: var(--primary); color: var(--on-primary); font-weight: 600; }
+    .slots-loading, .slots-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 0.75rem 0; }
 
-    /* Form */
     .booking-form {
-      margin-top: 1.5rem;
-      padding-top: 1.25rem;
-      border-top: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-      animation: fadeIn 0.2s ease;
+      margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 0.85rem; animation: fadeIn 0.2s ease;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-    label {
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: var(--muted);
-    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    label { font-size: 0.85rem; font-weight: 500; color: var(--muted); }
     input, textarea {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.95rem;
-      padding: 0.55rem 0.75rem;
-      transition: border-color 0.15s, box-shadow 0.15s;
-      width: 100%;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem;
+      color: var(--text); font-family: inherit; font-size: 0.95rem; padding: 0.55rem 0.75rem;
+      transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
     }
-    input:focus, textarea:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
-      outline: none;
-    }
+    input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent); outline: none; }
     textarea { resize: vertical; min-height: 80px; }
     .btn-confirm {
-      background: var(--primary);
-      border: none;
-      border-radius: 0.5rem;
-      color: #fff;
-      cursor: pointer;
-      font-size: 0.95rem;
-      font-weight: 600;
-      padding: 0.7rem 1.25rem;
-      transition: background 0.15s, opacity 0.15s;
+      background: var(--primary); border: none; border-radius: 0.5rem;
+      color: var(--on-primary); cursor: pointer; font-size: 0.95rem; font-weight: 600;
+      padding: 0.7rem 1.25rem; transition: background 0.15s, opacity 0.15s;
     }
     .btn-confirm:hover { background: var(--primary-hover); }
     .btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
-    .form-error {
-      color: var(--danger);
-      font-size: 0.875rem;
-    }
+    .form-error { color: var(--danger); font-size: 0.875rem; }
 
-    /* Success */
-    .success-box {
-      text-align: center;
-      padding: 2rem;
-      animation: fadeIn 0.3s ease;
-    }
+    .success-box { text-align: center; padding: 2rem; animation: fadeIn 0.3s ease; }
     .success-icon { font-size: 3rem; margin-bottom: 0.75rem; }
     .success-box h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
     .success-box p { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.5rem; }
-    .jitsi-link {
-      display: inline-block;
-      margin-top: 0.75rem;
-      color: var(--primary);
-      font-weight: 600;
-      word-break: break-all;
-    }
-
-    .placeholder-text {
-      color: var(--muted);
-      font-size: 0.95rem;
-      padding: 1rem 0;
-    }
+    .jitsi-link { display: inline-block; margin-top: 0.75rem; color: var(--primary); font-weight: 600; word-break: break-all; }
+    .placeholder-text { color: var(--muted); font-size: 0.95rem; padding: 1rem 0; }
   </style>
 </head>
 <body>
@@ -328,7 +147,6 @@
   </header>
 
   <div class="layout">
-    <!-- Left: Calendar -->
     <div class="panel calendar-panel">
       <div class="cal-header">
         <button class="cal-nav" id="prevMonth">&#8249;</button>
@@ -337,8 +155,6 @@
       </div>
       <div class="cal-grid" id="calGrid"></div>
     </div>
-
-    <!-- Right: Slots + Form -->
     <div class="panel slots-panel" id="slotsPanel">
       <p class="placeholder-text">Select a day on the calendar to see available slots.</p>
     </div>
@@ -348,357 +164,197 @@
     const DURATION = 60;
     const API = 'https://book.ecke.lt/api';
     const TZ = 'Europe/Berlin';
-
     const DAY_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'So'];
     const WEEKDAY_ABBR = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-    function toMondayIndex(jsDay) {
-      return (jsDay + 6) % 7;
-    }
-
-    function startOfDay(date) {
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    }
+    function toMondayIndex(jsDay) { return (jsDay + 6) % 7; }
+    function startOfDay(date) { const d = new Date(date); d.setHours(0,0,0,0); return d; }
 
     const today = startOfDay(new Date());
-    let viewYear = today.getFullYear();
-    let viewMonth = today.getMonth();
-    let selectedDate = null;
+    let viewYear = today.getFullYear(), viewMonth = today.getMonth();
     let selectedSlot = null;
-
-    function firstBookable() {
-      const d = new Date(today);
-      d.setDate(d.getDate() + 1);
-      return nextWorkingDay(d, true);
-    }
-    function lastBookable() {
-      const d = new Date(today);
-      d.setDate(d.getDate() + 14);
-      return d;
-    }
-
-    let pairLeft = null;
-    let pairRight = null;
-
+    let pairLeft = null, pairRight = null;
     const slotCache = {};
 
-    function isWorkday(date) {
-      const dow = date.getDay();
-      return dow >= 1 && dow <= 5;
-    }
-
-    function stepWorkday(date, forward) {
+    function isWorkday(d) { const w = d.getDay(); return w >= 1 && w <= 5; }
+    function stepWorkday(date, fwd) {
       const d = new Date(date);
-      do {
-        d.setDate(d.getDate() + (forward ? 1 : -1));
-      } while (!isWorkday(d));
+      do { d.setDate(d.getDate() + (fwd ? 1 : -1)); } while (!isWorkday(d));
       return d;
     }
-
-    function nextWorkingDay(date, inclusive) {
-      const d = inclusive ? new Date(date) : stepWorkday(date, true);
-      if (inclusive && !isWorkday(d)) return stepWorkday(d, true);
-      return inclusive ? d : d;
+    function firstBookable() {
+      const d = new Date(today); d.setDate(d.getDate() + 1);
+      return isWorkday(d) ? d : stepWorkday(d, true);
     }
-
-    function formatMonthTitle(year, month) {
-      return new Date(year, month, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-    }
-
+    function lastBookable() { const d = new Date(today); d.setDate(d.getDate() + 14); return d; }
     function isBookable(date) {
       const d = startOfDay(date);
-      const diffDays = Math.round((d - today) / 86400000);
-      const dow = d.getDay();
-      return diffDays >= 1 && diffDays <= 14 && dow >= 1 && dow <= 5;
+      const diff = Math.round((d - today) / 86400000);
+      return diff >= 1 && diff <= 14 && isWorkday(d);
     }
-
     function isSameDay(a, b) {
-      return a.getFullYear() === b.getFullYear() &&
-             a.getMonth() === b.getMonth() &&
-             a.getDate() === b.getDate();
+      return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
     }
-
-    function formatDateISO(date) {
-      return date.toLocaleDateString('sv-SE');
-    }
-
-    function formatSlotTime(isoStr) {
-      return new Date(isoStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
+    function formatDateISO(d) { return d.toLocaleDateString('sv-SE'); }
+    function formatSlotTime(iso) {
+      return new Date(iso).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', timeZone: TZ });
     }
 
     function renderCalendar() {
-      document.getElementById('calTitle').textContent = formatMonthTitle(viewYear, viewMonth);
+      document.getElementById('calTitle').textContent =
+        new Date(viewYear, viewMonth, 1).toLocaleDateString('en-GB', { month:'long', year:'numeric' });
       const grid = document.getElementById('calGrid');
       grid.innerHTML = '';
-
-      DAY_LABELS.forEach(label => {
-        const el = document.createElement('div');
-        el.className = 'cal-day-label';
-        el.textContent = label;
-        grid.appendChild(el);
-      });
-
+      DAY_LABELS.forEach(l => { const e = document.createElement('div'); e.className='cal-day-label'; e.textContent=l; grid.appendChild(e); });
       const firstDay = new Date(viewYear, viewMonth, 1);
-      const startOffset = toMondayIndex(firstDay.getDay());
-      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-
-      for (let i = 0; i < startOffset; i++) {
-        const el = document.createElement('div');
-        el.className = 'cal-cell empty';
-        grid.appendChild(el);
-      }
-
-      for (let d = 1; d <= daysInMonth; d++) {
+      const offset = toMondayIndex(firstDay.getDay());
+      const days = new Date(viewYear, viewMonth+1, 0).getDate();
+      for (let i=0; i<offset; i++) { const e=document.createElement('div'); e.className='cal-cell empty'; grid.appendChild(e); }
+      for (let d=1; d<=days; d++) {
         const date = new Date(viewYear, viewMonth, d);
         const el = document.createElement('div');
-        el.className = 'cal-cell';
-        el.textContent = d;
-
+        el.className = 'cal-cell'; el.textContent = d;
         if (isSameDay(date, today)) el.classList.add('today');
-
-        const isLeft = pairLeft && isSameDay(date, pairLeft);
-        const isRight = pairRight && isSameDay(date, pairRight);
-        if (isLeft || isRight) {
+        if ((pairLeft&&isSameDay(date,pairLeft))||(pairRight&&isSameDay(date,pairRight))) {
           el.classList.add('selected');
         } else if (isBookable(date)) {
           el.classList.add('bookable');
           el.addEventListener('click', () => selectDay(date));
-        } else {
-          el.classList.add('disabled');
-        }
-
+        } else { el.classList.add('disabled'); }
         grid.appendChild(el);
       }
     }
 
     function selectDay(date) {
       selectedSlot = null;
-      const last = lastBookable();
       pairLeft = startOfDay(date);
+      const last = lastBookable();
       if (isSameDay(pairLeft, last)) {
         pairRight = null;
       } else {
-        pairRight = stepWorkday(pairLeft, true);
-        if (Math.round((pairRight - today) / 86400000) > 14) pairRight = null;
+        const next = stepWorkday(pairLeft, true);
+        pairRight = Math.round((next-today)/86400000) <= 14 ? next : null;
       }
-      selectedDate = pairLeft;
-      renderCalendar();
-      renderSlotsPanel();
-
-      if (window.innerWidth < 640) {
-        document.getElementById('slotsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      renderCalendar(); renderSlotsPanel();
+      if (window.innerWidth < 640)
+        document.getElementById('slotsPanel').scrollIntoView({ behavior:'smooth', block:'start' });
     }
 
     async function fetchSlotsForDate(date) {
       const iso = formatDateISO(date);
       if (slotCache[iso] !== undefined) return slotCache[iso];
-
-      const toDate = new Date(date);
-      toDate.setDate(toDate.getDate() + 1);
-      const toISO = formatDateISO(toDate);
-
+      const toDate = new Date(date); toDate.setDate(toDate.getDate()+1);
       try {
-        const res = await fetch(`${API}/slots?duration=${DURATION}&from=${encodeURIComponent(iso)}&to=${encodeURIComponent(toISO)}`);
-        if (!res.ok) throw new Error('Server error');
+        const res = await fetch(`${API}/slots?duration=${DURATION}&from=${encodeURIComponent(iso)}&to=${encodeURIComponent(formatDateISO(toDate))}`);
+        if (!res.ok) throw new Error();
         const data = await res.json();
         slotCache[iso] = data.slots || [];
-      } catch (e) {
-        slotCache[iso] = null;
-      }
+      } catch { slotCache[iso] = null; }
       return slotCache[iso];
     }
 
     function renderSlotsPanel() {
       const panel = document.getElementById('slotsPanel');
-      if (!pairLeft) {
-        panel.innerHTML = '<p class="placeholder-text">Select a day on the calendar to see available slots.</p>';
-        return;
-      }
-
-      const first = firstBookable();
-      const last = lastBookable();
-
-      const prevDisabled = isSameDay(pairLeft, first);
-      const nextDisabled = pairRight ? isSameDay(pairRight, last) : isSameDay(pairLeft, last);
-
+      if (!pairLeft) { panel.innerHTML='<p class="placeholder-text">Select a day on the calendar to see available slots.</p>'; return; }
+      const first = firstBookable(), last = lastBookable();
+      const prevDis = isSameDay(pairLeft, first);
+      const nextDis = pairRight ? isSameDay(pairRight, last) : isSameDay(pairLeft, last);
       panel.innerHTML = `
         <div class="slots-nav">
-          <button class="slots-nav-arrow" id="slotPrev" ${prevDisabled ? 'disabled' : ''}>&#8249;</button>
-          <div class="slots-day-grid" id="slotDayGrid">
-            <div class="slots-day-col" id="slotColLeft">
-              ${dayColHeaderHTML(pairLeft)}
+          <button class="slots-nav-arrow" id="slotPrev" ${prevDis?'disabled':''}>&#8249;</button>
+          <div class="slots-day-grid">
+            <div class="slots-day-col">
+              ${dayColHeader(pairLeft)}
               <div class="slots-col-list" id="slotListLeft"><div class="slots-loading">Loading&hellip;</div></div>
             </div>
-            <div class="slots-day-col" id="slotColRight">
-              ${pairRight ? dayColHeaderHTML(pairRight) : ''}
-              <div class="slots-col-list" id="slotListRight">${pairRight ? '<div class="slots-loading">Loading&hellip;</div>' : ''}</div>
+            <div class="slots-day-col">
+              ${pairRight ? dayColHeader(pairRight) : ''}
+              <div class="slots-col-list" id="slotListRight">${pairRight?'<div class="slots-loading">Loading&hellip;</div>':''}</div>
             </div>
           </div>
-          <button class="slots-nav-arrow" id="slotNext" ${nextDisabled ? 'disabled' : ''}>&#8250;</button>
+          <button class="slots-nav-arrow" id="slotNext" ${nextDis?'disabled':''}>&#8250;</button>
         </div>
-        <div id="bookingFormContainer"></div>
-      `;
-
+        <div id="bookingFormContainer"></div>`;
       document.getElementById('slotPrev').addEventListener('click', () => shiftPair(-1));
       document.getElementById('slotNext').addEventListener('click', () => shiftPair(1));
-
       const fetches = [fetchSlotsForDate(pairLeft)];
       if (pairRight) fetches.push(fetchSlotsForDate(pairRight));
-
-      Promise.all(fetches).then(([leftSlots, rightSlots]) => {
-        renderColSlots('slotListLeft', leftSlots);
-        if (pairRight) renderColSlots('slotListRight', rightSlots);
+      Promise.all(fetches).then(([l, r]) => {
+        renderColSlots('slotListLeft', l);
+        if (pairRight) renderColSlots('slotListRight', r);
       });
     }
 
-    function dayColHeaderHTML(date) {
-      const abbr = WEEKDAY_ABBR[date.getDay()];
-      const num = date.getDate();
-      return `<div class="slots-day-header"><div class="slots-day-weekday">${abbr}</div><div class="slots-day-num">${num}</div></div>`;
+    function dayColHeader(date) {
+      return `<div class="slots-day-header"><div class="slots-day-weekday">${WEEKDAY_ABBR[date.getDay()]}</div><div class="slots-day-num">${date.getDate()}</div></div>`;
     }
 
-    function renderColSlots(listId, slots) {
-      const el = document.getElementById(listId);
+    function renderColSlots(id, slots) {
+      const el = document.getElementById(id);
       if (!el) return;
-      if (slots === null) {
-        el.innerHTML = '<div class="slots-empty">Error</div>';
-        return;
-      }
-      if (slots.length === 0) {
-        el.innerHTML = '<div class="slots-empty">None</div>';
-        return;
-      }
-      el.innerHTML = slots.map(s =>
-        `<button class="slot-btn" data-start="${s.start}" data-end="${s.end}">${formatSlotTime(s.start)}</button>`
-      ).join('');
-
-      el.querySelectorAll('.slot-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          selectedSlot = { start: btn.dataset.start, end: btn.dataset.end };
-          showBookingForm(document.getElementById('bookingFormContainer'), selectedSlot);
-        });
-      });
+      if (!slots) { el.innerHTML='<div class="slots-empty">Error</div>'; return; }
+      if (!slots.length) { el.innerHTML='<div class="slots-empty">None</div>'; return; }
+      el.innerHTML = slots.map(s=>`<button class="slot-btn" data-start="${s.start}" data-end="${s.end}">${formatSlotTime(s.start)}</button>`).join('');
+      el.querySelectorAll('.slot-btn').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('.slot-btn').forEach(b=>b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedSlot = { start: btn.dataset.start, end: btn.dataset.end };
+        showForm(document.getElementById('bookingFormContainer'), selectedSlot);
+      }));
     }
 
-    function shiftPair(direction) {
+    function shiftPair(dir) {
       selectedSlot = null;
       const first = firstBookable();
-      const last = lastBookable();
-
-      if (direction === 1) {
-        const newLeft = pairRight ? pairRight : stepWorkday(pairLeft, true);
-        pairLeft = newLeft;
-        const candidate = stepWorkday(pairLeft, true);
-        pairRight = Math.round((candidate - today) / 86400000) <= 14 ? candidate : null;
+      if (dir === 1) {
+        pairLeft = pairRight || stepWorkday(pairLeft, true);
+        const next = stepWorkday(pairLeft, true);
+        pairRight = Math.round((next-today)/86400000) <= 14 ? next : null;
       } else {
-        const newRight = pairLeft;
-        const newLeft = stepWorkday(pairLeft, false);
-        pairLeft = newLeft;
-        pairRight = newRight;
-        if (Math.round((pairRight - today) / 86400000) > 14) pairRight = null;
+        pairRight = pairLeft;
+        pairLeft = stepWorkday(pairLeft, false);
+        if (Math.round((pairLeft-today)/86400000) < 1) pairLeft = first;
       }
-
-      if (Math.round((pairLeft - today) / 86400000) < 1) pairLeft = first;
-
-      selectedDate = pairLeft;
-      renderCalendar();
-      renderSlotsPanel();
+      renderCalendar(); renderSlotsPanel();
     }
 
-    function showBookingForm(container, slot) {
+    function showForm(container, slot) {
       container.innerHTML = `
         <form class="booking-form" id="bookingForm" novalidate>
-          <div class="form-group">
-            <label for="fieldName">Your name</label>
-            <input type="text" id="fieldName" placeholder="Jane Smith" required />
-          </div>
-          <div class="form-group">
-            <label for="fieldEmail">Your email</label>
-            <input type="email" id="fieldEmail" placeholder="jane@example.com" required />
-          </div>
-          <div class="form-group">
-            <label for="fieldNotes">Notes <span style="font-weight:400">(optional)</span></label>
-            <textarea id="fieldNotes" placeholder="What would you like to discuss?"></textarea>
-          </div>
-          <div id="formError" class="form-error" style="display:none"></div>
-          <button type="submit" class="btn-confirm" id="btnConfirm">Confirm booking</button>
-        </form>
-      `;
-
-      document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+          <div class="form-group"><label for="fName">Your name</label><input type="text" id="fName" placeholder="Jane Smith" required /></div>
+          <div class="form-group"><label for="fEmail">Your email</label><input type="email" id="fEmail" placeholder="jane@example.com" required /></div>
+          <div class="form-group"><label for="fNotes">Notes <span style="font-weight:400">(optional)</span></label><textarea id="fNotes" placeholder="What would you like to discuss?"></textarea></div>
+          <div id="formErr" class="form-error" style="display:none"></div>
+          <button type="submit" class="btn-confirm" id="btnOk">Confirm booking</button>
+        </form>`;
+      document.getElementById('bookingForm').addEventListener('submit', async e => {
         e.preventDefault();
-        const name = document.getElementById('fieldName').value.trim();
-        const email = document.getElementById('fieldEmail').value.trim();
-        const notes = document.getElementById('fieldNotes').value.trim();
-        const errEl = document.getElementById('formError');
-        const btn = document.getElementById('btnConfirm');
-
-        errEl.style.display = 'none';
-
-        if (!name) { showError(errEl, 'Please enter your name.'); return; }
-        if (!email || !email.includes('@')) { showError(errEl, 'Please enter a valid email address.'); return; }
-
-        btn.disabled = true;
-        btn.textContent = 'Booking…';
-
+        const name = document.getElementById('fName').value.trim();
+        const email = document.getElementById('fEmail').value.trim();
+        const notes = document.getElementById('fNotes').value.trim();
+        const err = document.getElementById('formErr');
+        const btn = document.getElementById('btnOk');
+        err.style.display='none';
+        if (!name) { err.textContent='Please enter your name.'; err.style.display='block'; return; }
+        if (!email||!email.includes('@')) { err.textContent='Please enter a valid email.'; err.style.display='block'; return; }
+        btn.disabled=true; btn.textContent='Booking…';
         try {
-          const res = await fetch(`${API}/book`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ duration: DURATION, start: slot.start, name, email, notes }),
-          });
+          const res = await fetch(`${API}/book`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({duration:DURATION, start:slot.start, name, email, notes}) });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.message || 'Booking failed');
-          showSuccess(data, slot);
-        } catch (err) {
-          btn.disabled = false;
-          btn.textContent = 'Confirm booking';
-          showError(errEl, err.message || 'Something went wrong. Please try again.');
+          if (!res.ok) throw new Error(data.error || 'Booking failed');
+          const panel = document.getElementById('slotsPanel');
+          const fmt = d => new Date(d).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ});
+          const dayFmt = new Date(slot.start).toLocaleString('en-GB',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit',timeZone:TZ});
+          panel.innerHTML = `<div class="success-box"><div class="success-icon">&#x2705;</div><h2>You&rsquo;re booked!</h2><p>${dayFmt} &ndash; ${fmt(slot.end)}</p><p>A confirmation will be sent to your email.</p>${data.jitsiUrl?`<a class="jitsi-link" href="${data.jitsiUrl}" target="_blank" rel="noopener">${data.jitsiUrl}</a>`:''}</div>`;
+        } catch(ex) {
+          btn.disabled=false; btn.textContent='Confirm booking';
+          err.textContent=ex.message||'Something went wrong.'; err.style.display='block';
         }
       });
     }
 
-    function showError(el, msg) {
-      el.textContent = msg;
-      el.style.display = 'block';
-    }
-
-    function showSuccess(data, slot) {
-      const slotsPanel = document.getElementById('slotsPanel');
-      const startFmt = new Date(slot.start).toLocaleString('en-GB', {
-        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: TZ
-      });
-      const endFmt = new Date(slot.end).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
-      const jitsiLink = data.jitsiLink || data.join_url || data.url || '';
-
-      slotsPanel.innerHTML = `
-        <div class="success-box">
-          <div class="success-icon">&#x2705;</div>
-          <h2>You&rsquo;re booked!</h2>
-          <p>${startFmt} &ndash; ${endFmt}</p>
-          <p>A confirmation will be sent to your email.</p>
-          ${jitsiLink ? `<a class="jitsi-link" href="${jitsiLink}" target="_blank" rel="noopener">${jitsiLink}</a>` : ''}
-        </div>
-      `;
-    }
-
-    document.getElementById('prevMonth').addEventListener('click', () => {
-      viewMonth--;
-      if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-      renderCalendar();
-    });
-
-    document.getElementById('nextMonth').addEventListener('click', () => {
-      viewMonth++;
-      if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-      renderCalendar();
-    });
-
+    document.getElementById('prevMonth').addEventListener('click', () => { viewMonth--; if(viewMonth<0){viewMonth=11;viewYear--;} renderCalendar(); });
+    document.getElementById('nextMonth').addEventListener('click', () => { viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} renderCalendar(); });
     renderCalendar();
   </script>
 </body>
