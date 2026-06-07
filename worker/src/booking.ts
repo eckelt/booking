@@ -42,6 +42,7 @@ export function validateBookingRequest(body: unknown): BookingRequest {
 export async function createBooking(
   env: Env,
   req: BookingRequest,
+  ctx: ExecutionContext,
   fetcher: typeof fetch = fetch
 ): Promise<BookingResult> {
   const start = new Date(req.start);
@@ -86,17 +87,20 @@ export async function createBooking(
 
   await putEvent(env, uid, ical, fetcher);
 
-  // Fire-and-forget: booking is already written to CalDAV, don't let SMTP delay the response
-  sendEmails(env, {
-    uid,
-    start,
-    end,
-    name: req.name,
-    bookerEmail: req.email,
-    notes: req.notes ?? "",
-    jitsiUrl,
-    icalAttachment: ical,
-  }).catch(err => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`));
+  // waitUntil keeps the Worker alive after the Response is returned so the
+  // SMTP handshake can complete without being killed by the runtime.
+  ctx.waitUntil(
+    sendEmails(env, {
+      uid,
+      start,
+      end,
+      name: req.name,
+      bookerEmail: req.email,
+      notes: req.notes ?? "",
+      jitsiUrl,
+      icalAttachment: ical,
+    }).catch(err => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`))
+  );
 
   return {
     uid,
