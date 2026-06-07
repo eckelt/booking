@@ -14,6 +14,7 @@ export interface BookingRequest {
   name: string;
   email: string;
   notes?: string;
+  rescheduleUid?: string;
 }
 
 export interface BookingResult {

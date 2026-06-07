@@ -284,7 +284,8 @@
         if(!email||!email.includes('@')){err.textContent=T.errEmail;err.style.display='block';return;}
         btn.disabled=true; btn.textContent=T.confirming;
         try {
-          const res=await fetch(`${API}/book`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({duration:DURATION,start:slot.start,name,email,notes})});
+          const rescheduleUid=new URLSearchParams(location.search).get('reschedule')||undefined;
+          const res=await fetch(`${API}/book`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({duration:DURATION,start:slot.start,name,email,notes,...(rescheduleUid&&{rescheduleUid})})});
           const data=await res.json();
           if(!res.ok) throw new Error(data.error||T.errGeneric);
           const panel=document.getElementById('slotsPanel');

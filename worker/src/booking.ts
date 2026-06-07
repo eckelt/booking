@@ -1,6 +1,6 @@
 import type { BookingRequest, BookingResult, Env, Interval } from "./types.js";
 import { SlotUnavailableError } from "./types.js";
-import { fetchBusy, putEvent, buildIcal } from "./caldav.js";
+import { fetchBusy, putEvent, deleteEvent, buildIcal } from "./caldav.js";
 import { sendEmails } from "./email.js";
 import { generateUid, generateJitsiUrl } from "./jitsi.js";
 import { computeSlots, workingDayWindow } from "./availability.js";
@@ -36,7 +36,14 @@ export function validateBookingRequest(body: unknown): BookingRequest {
 
   const notes = String(b["notes"] ?? "").slice(0, 1000);
 
-  return { start, duration, name, email, notes };
+  const rescheduleUid = b["rescheduleUid"] !== undefined
+    ? String(b["rescheduleUid"]).trim()
+    : undefined;
+  if (rescheduleUid && !/^[\w-]+$/.test(rescheduleUid)) {
+    throw new Error("invalid rescheduleUid");
+  }
+
+  return { start, duration, name, email, notes, rescheduleUid };
 }
 
 export async function createBooking(
@@ -83,6 +90,12 @@ export async function createBooking(
 
   await putEvent(env, uid, ical, fetcher);
 
+  if (req.rescheduleUid) {
+    await deleteEvent(env, req.rescheduleUid, fetcher).catch((err) =>
+      console.error(`[reschedule] failed to delete old event uid=${req.rescheduleUid} error=${err?.message ?? err}`)
+    );
+  }
+
   // Email is best-effort — a failure must not roll back the booking
   const durationPath = req.duration === 60 ? "60min" : "30min";
   ctx.waitUntil(
@@ -96,7 +109,7 @@ export async function createBooking(
       jitsiUrl,
       icalAttachment: ical,
       cancelUrl: `https://book.ecke.lt/api/cancel?uid=${uid}`,
-      rescheduleUrl: `https://book.ecke.lt/${durationPath}/`,
+      rescheduleUrl: `https://book.ecke.lt/${durationPath}/?reschedule=${uid}`,
     }).catch((err) => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`))
   );
 
