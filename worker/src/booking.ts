@@ -79,9 +79,6 @@ export async function createBooking(
     name: req.name,
     notes: req.notes ?? "",
     jitsiUrl,
-    ownerEmail: env.OWNER_EMAIL,
-    ownerName: env.OWNER_NAME,
-    bookerEmail: req.email,
   });
 
   await putEvent(env, uid, ical, fetcher);

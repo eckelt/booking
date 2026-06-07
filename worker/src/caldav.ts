@@ -89,9 +89,6 @@ export function buildIcal(params: {
   name: string;
   notes: string;
   jitsiUrl: string;
-  ownerEmail: string;
-  ownerName: string;
-  bookerEmail: string;
 }): string {
   const fmt = (d: Date) =>
     d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -121,8 +118,6 @@ export function buildIcal(params: {
     `DTEND;TZID=Europe/Berlin:${dtEnd}`,
     `SUMMARY:Meeting with ${params.name}`,
     `DESCRIPTION:Booked via book.ecke.lt\\nNotes: ${params.notes || "—"}\\nJitsi: ${params.jitsiUrl}`,
-    `ORGANIZER;CN=${params.ownerName}:mailto:${params.ownerEmail}`,
-    `ATTENDEE;CN=${params.name}:mailto:${params.bookerEmail}`,
     `X-JITSI-URL:${params.jitsiUrl}`,
     "END:VEVENT",
     "END:VCALENDAR",
