@@ -98,7 +98,7 @@ function buildBookerHtml(env: Env, p: EmailParams): string {
 <tr><td style="padding:6px 12px 6px 0;color:#736e73">Time</td><td style="padding:6px 0"><strong>${formatTime(p.start)} – ${formatTime(p.end)}</strong> (Europe/Berlin)</td></tr>
 <tr><td style="padding:6px 12px 6px 0;color:#736e73">Duration</td><td style="padding:6px 0">${durationMin} minutes</td></tr>
 </table>
-<p><a href="${p.jitsiUrl}" style="display:inline-block;padding:12px 24px;background:#006e8a;color:#fff;text-decoration:none;border-radius:999px">Join video call</a></p>
+<p><a href="${p.jitsiUrl}" style="display:inline-block;padding:12px 24px;background:#006e8a;color:#fff;text-decoration:none;border-radius:0.3rem">Join video call</a></p>
 <p style="color:#736e73;font-size:14px">No app needed — works in your browser.</p>
 ${p.notes ? `<p><strong>Notes:</strong><br>${escapeHtml(p.notes)}</p>` : ""}
 <p>Looking forward to talking!<br>${escapeHtml(env.OWNER_NAME)}</p>
