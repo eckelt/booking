@@ -11,7 +11,7 @@ const CORS_HEADERS = {
 };
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
@@ -23,7 +23,7 @@ export default {
         return await handleSlots(url, env);
       }
       if (url.pathname === "/api/book" && request.method === "POST") {
-        return await handleBook(request, env);
+        return await handleBook(request, env, ctx);
       }
       return json({ error: "not found" }, 404);
     } catch (err) {
@@ -91,7 +91,7 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
   return json({ slots });
 }
 
-async function handleBook(request: Request, env: Env): Promise<Response> {
+async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   let body: unknown;
   try {
     body = await request.json();
@@ -107,7 +107,7 @@ async function handleBook(request: Request, env: Env): Promise<Response> {
   }
 
   try {
-    const result = await createBooking(env, req);
+    const result = await createBooking(env, req, ctx);
     return json(result, 201);
   } catch (err) {
     if (err instanceof SlotUnavailableError) {
