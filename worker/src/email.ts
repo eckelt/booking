@@ -29,7 +29,7 @@ async function sendConfirmationToBooker(env: Env, p: EmailParams): Promise<void>
     subject,
     text: buildBookerText(env, p),
     html: buildBookerHtml(env, p),
-    icsAttachment: { filename: "booking.ics", content: p.icalAttachment },
+    icsAttachment: { filename: "booking.ics", content: addMethodPublish(p.icalAttachment) },
   });
 }
 
@@ -116,6 +116,12 @@ export function formatTime(d: Date): string {
     minute: "2-digit",
     hour12: false,
   }).format(d);
+}
+
+// Insert METHOD:PUBLISH after PRODID so mail clients treat it as informational,
+// not as a meeting request that triggers a second calendar invitation email.
+function addMethodPublish(ical: string): string {
+  return ical.replace(/(PRODID:[^\r\n]+\r?\n)/, "$1METHOD:PUBLISH\r\n");
 }
 
 function escapeHtml(s: string): string {
