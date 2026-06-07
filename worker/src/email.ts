@@ -141,8 +141,11 @@ async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
   const { connect } = await import("cloudflare:sockets");
   const socket = connect({ hostname: "smtp.fastmail.com", port: 465 }, { secureTransport: "on" });
 
-  const writer = socket.writable.getWriter();
-  const reader = socket.readable.getReader();
+  let writer: WritableStreamDefaultWriter | undefined;
+  let reader: ReadableStreamDefaultReader | undefined;
+  try {
+  writer = socket.writable.getWriter();
+  reader = socket.readable.getReader();
   const dec = new TextDecoder();
   let lineBuf = "";
 
@@ -202,6 +205,12 @@ async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
   await send("QUIT");
   await reader.cancel();
   await writer.close();
+  } catch (err) {
+    // Ensure socket is always cleaned up
+    try { await writer?.close(); } catch { /* ignore */ }
+    try { await reader?.cancel(); } catch { /* ignore */ }
+    throw err;
+  }
 }
 
 function buildRawMessage(msg: SmtpMessage): string {

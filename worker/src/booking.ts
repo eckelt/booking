@@ -96,7 +96,7 @@ export async function createBooking(
     notes: req.notes ?? "",
     jitsiUrl,
     icalAttachment: ical,
-  }).catch(err => console.error("sendEmails failed:", err));
+  }).catch(err => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`));
 
   return {
     uid,
