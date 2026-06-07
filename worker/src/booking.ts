@@ -87,6 +87,7 @@ export async function createBooking(
   await putEvent(env, uid, ical, fetcher);
 
   // Email is best-effort — a failure must not roll back the booking
+  const durationPath = req.duration === 60 ? "60min" : "30min";
   ctx.waitUntil(
     sendEmails(env, {
       uid,
@@ -97,6 +98,8 @@ export async function createBooking(
       notes: req.notes ?? "",
       jitsiUrl,
       icalAttachment: ical,
+      cancelUrl: `https://book.ecke.lt/api/cancel?uid=${uid}`,
+      rescheduleUrl: `https://book.ecke.lt/${durationPath}/`,
     }).catch((err) => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`))
   );
 

@@ -1,6 +1,6 @@
 import type { Env, Interval } from "./types.js";
 import { SlotUnavailableError } from "./types.js";
-import { fetchBusy } from "./caldav.js";
+import { fetchBusy, deleteEvent } from "./caldav.js";
 import { workingDayWindow, computeSlots } from "./availability.js";
 import { validateBookingRequest, createBooking } from "./booking.js";
 
@@ -24,6 +24,9 @@ export default {
       }
       if (url.pathname === "/api/book" && request.method === "POST") {
         return await handleBook(request, env, ctx);
+      }
+      if (url.pathname === "/api/cancel" && request.method === "GET") {
+        return await handleCancel(url, env);
       }
       return json({ error: "not found" }, 404);
     } catch (err) {
@@ -115,6 +118,31 @@ async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Pr
     }
     throw err;
   }
+}
+
+async function handleCancel(url: URL, env: Env): Promise<Response> {
+  const uid = url.searchParams.get("uid")?.trim();
+  if (!uid || !/^[\w-]+$/.test(uid)) {
+    return html("<h2>Invalid cancellation link.</h2>", 400);
+  }
+  await deleteEvent(env, uid);
+  return html(`<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Booking cancelled</title>
+<style>body{font-family:sans-serif;max-width:500px;margin:60px auto;padding:20px;color:#222}
+a{color:#0070f3}</style></head>
+<body>
+<h2>Booking cancelled</h2>
+<p>Your booking has been removed from the calendar.</p>
+<p><a href="https://book.ecke.lt">Book a new time</a></p>
+</body></html>`);
+}
+
+function html(content: string, status = 200): Response {
+  return new Response(content, {
+    status,
+    headers: { ...CORS_HEADERS, "Content-Type": "text/html; charset=utf-8" },
+  });
 }
 
 function json(data: unknown, status = 200): Response {

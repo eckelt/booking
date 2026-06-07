@@ -9,6 +9,8 @@ export interface EmailParams {
   notes: string;
   jitsiUrl: string;
   icalAttachment: string;
+  cancelUrl: string;
+  rescheduleUrl: string;
 }
 
 const TZ = "Europe/Berlin";
@@ -61,7 +63,12 @@ Notes you left:
 ${p.notes || "—"}
 
 Looking forward to talking!
-${env.OWNER_NAME}`;
+${env.OWNER_NAME}
+
+──────────────────────────
+Need to change your plans?
+Reschedule: ${p.rescheduleUrl}
+Cancel:     ${p.cancelUrl}`;
 }
 
 function buildOwnerText(env: Env, p: EmailParams): string {
@@ -95,6 +102,12 @@ function buildBookerHtml(env: Env, p: EmailParams): string {
 <p style="color:#666;font-size:14px">No app needed — works in your browser.</p>
 ${p.notes ? `<p><strong>Notes:</strong><br>${escapeHtml(p.notes)}</p>` : ""}
 <p>Looking forward to talking!<br>${escapeHtml(env.OWNER_NAME)}</p>
+<hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+<p style="color:#666;font-size:14px">Need to change your plans?</p>
+<p>
+  <a href="${p.rescheduleUrl}" style="display:inline-block;padding:10px 20px;background:#f5f5f5;color:#333;text-decoration:none;border-radius:6px;margin-right:8px">Reschedule</a>
+  <a href="${p.cancelUrl}" style="display:inline-block;padding:10px 20px;background:#f5f5f5;color:#c00;text-decoration:none;border-radius:6px">Cancel booking</a>
+</p>
 </body>
 </html>`;
 }

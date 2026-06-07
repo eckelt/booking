@@ -42,6 +42,22 @@ export async function fetchBusy(
   return parseMultiStatusIntervals(xml);
 }
 
+export async function deleteEvent(
+  env: Env,
+  uid: string,
+  fetcher: typeof fetch = fetch
+): Promise<void> {
+  const url = calendarUrl(env, env.CALDAV_CALENDAR_NILS) + `${uid}.ics`;
+  const res = await fetcher(url, {
+    method: "DELETE",
+    headers: { Authorization: authHeader(env) },
+  });
+  if (!res.ok && res.status !== 404) {
+    const rbody = await res.text().catch(() => "");
+    throw new Error(`CalDAV DELETE failed: ${res.status} url=${url} body=${rbody.slice(0, 300)}`);
+  }
+}
+
 export async function putEvent(
   env: Env,
   uid: string,
