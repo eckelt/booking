@@ -74,11 +74,17 @@
     .success-box p { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.5rem; }
     .jitsi-link { display: inline-block; margin-top: 0.75rem; color: var(--primary); font-weight: 600; word-break: break-all; }
     .placeholder-text { color: var(--muted); font-size: 0.95rem; padding: 1rem 0; }
-    .slot-summary { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0 0.75rem; border-bottom: 1px solid var(--border); }
-    .slot-summary-time { font-weight: 600; font-size: 0.9rem; color: var(--primary); }
-    .slot-summary-change { background: none; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); cursor: pointer; font-size: 0.78rem; padding: 0.2rem 0.65rem; font-family: inherit; transition: border-color 0.1s, color 0.1s; white-space: nowrap; }
-    .slot-summary-change:hover { border-color: var(--primary); color: var(--primary); }
-    @media (max-width: 639px) { .slot-collapsed .slots-nav { display: none; } }
+    .slot-change-link { display: none; text-align: center; padding: 0.15rem 0 0.1rem; }
+    .slot-change-link button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.78rem; font-family: inherit; text-decoration: underline; text-underline-offset: 2px; padding: 0; }
+    .slot-change-link button:hover { color: var(--primary); }
+    @media (max-width: 639px) {
+      .slot-collapsed .slots-nav-arrow { display: none; }
+      .slot-collapsed .slots-day-header { display: none; }
+      .slot-collapsed .slots-day-grid { grid-template-columns: 1fr; }
+      .slot-collapsed .slots-day-col:not(:has(.selected)) { display: none; }
+      .slot-collapsed .slot-btn:not(.selected) { display: none; }
+      .slot-collapsed .slot-change-link { display: block; }
+    }
   </style>
 </head>
 <body>
@@ -164,7 +170,6 @@
     function startOfDay(d) { const r = new Date(d); r.setHours(0,0,0,0); return r; }
     function formatDateISO(d) { return d.toLocaleDateString('sv-SE'); }
     function formatSlotTime(iso) { return new Date(iso).toLocaleTimeString(T.locale, { hour:'2-digit', minute:'2-digit', timeZone: TZ }); }
-    function formatSlotSummary(iso) { const d=new Date(iso); return d.toLocaleDateString(T.locale,{weekday:'short',day:'numeric',month:'short',timeZone:TZ})+', '+d.toLocaleTimeString(T.locale,{hour:'2-digit',minute:'2-digit',timeZone:TZ}); }
     function isSameDay(a,b) { return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
     function isWorkday(d) { const w=d.getDay(); return w>=1&&w<=5; }
     function stepWorkday(date, fwd) { const d=new Date(date); do { d.setDate(d.getDate()+(fwd?1:-1)); } while(!isWorkday(d)); return d; }
@@ -273,18 +278,18 @@
 
     function collapseForMobile(slot) {
       if (window.innerWidth >= 640) return;
-      const existing = document.getElementById('slotSummary');
-      if (existing) existing.remove();
       const panel = document.getElementById('slotsPanel');
       panel.classList.add('slot-collapsed');
+      const existing = document.getElementById('slotChangeLink');
+      if (existing) existing.remove();
       const fc = document.getElementById('formContainer');
-      const s = document.createElement('div');
-      s.id = 'slotSummary'; s.className = 'slot-summary';
-      s.innerHTML = `<span class="slot-summary-time">${formatSlotSummary(slot.start)}</span><button class="slot-summary-change">${T.change}</button>`;
-      panel.insertBefore(s, fc);
-      s.querySelector('.slot-summary-change').addEventListener('click', () => {
+      const link = document.createElement('div');
+      link.id = 'slotChangeLink'; link.className = 'slot-change-link';
+      link.innerHTML = `<button>${T.change}</button>`;
+      panel.insertBefore(link, fc);
+      link.querySelector('button').addEventListener('click', () => {
         panel.classList.remove('slot-collapsed');
-        s.remove();
+        link.remove();
         selectedSlot = null;
         document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
         fc.innerHTML = '';
