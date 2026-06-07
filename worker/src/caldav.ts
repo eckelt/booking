@@ -98,6 +98,7 @@ export function buildIcal(params: {
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//book.ecke.lt//Booking//EN",
+    "METHOD:PUBLISH",
     "BEGIN:VEVENT",
     `UID:${params.uid}`,
     `DTSTAMP:${now}`,
