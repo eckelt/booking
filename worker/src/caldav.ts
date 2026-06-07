@@ -120,6 +120,7 @@ export function buildIcal(params: {
     `DTSTART;TZID=Europe/Berlin:${dtStart}`,
     `DTEND;TZID=Europe/Berlin:${dtEnd}`,
     `SUMMARY:Meeting with ${params.name}`,
+    `LOCATION:${params.jitsiUrl}`,
     `DESCRIPTION:Booked via book.ecke.lt\\nNotes: ${params.notes || "—"}\\nJitsi: ${params.jitsiUrl}`,
     `ORGANIZER;CN=${params.ownerName};SCHEDULE-AGENT=NONE:mailto:${params.ownerEmail}`,
     `ATTENDEE;CN=${params.name};SCHEDULE-AGENT=NONE:mailto:${params.bookerEmail}`,
