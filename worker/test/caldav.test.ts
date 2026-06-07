@@ -64,6 +64,24 @@ describe("parseMultiStatusIntervals", () => {
   it("returns empty array for empty response", () => {
     expect(parseMultiStatusIntervals("<multistatus></multistatus>")).toHaveLength(0);
   });
+
+  it("parses DTSTART with TZID (Europe/Berlin) correctly", () => {
+    // 10:30 Berlin = 08:30 UTC in summer (UTC+2)
+    const ical = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20260608T103000\r\nDTEND;TZID=Europe/Berlin:20260608T110000\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    const intervals = parseMultiStatusIntervals(makeMultiStatus(ical));
+    expect(intervals).toHaveLength(1);
+    expect(intervals[0]!.start).toEqual(new Date("2026-06-08T08:30:00Z"));
+    expect(intervals[0]!.end).toEqual(new Date("2026-06-08T09:00:00Z"));
+  });
+
+  it("does not re-offer a slot booked with TZID", () => {
+    // Booking at 09:00 Berlin (= 07:00 UTC) should block the 09:00 Berlin slot
+    const ical = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20260609T090000\r\nDTEND;TZID=Europe/Berlin:20260609T093000\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    const intervals = parseMultiStatusIntervals(makeMultiStatus(ical));
+    expect(intervals).toHaveLength(1);
+    // 09:00 Berlin = 07:00 UTC
+    expect(intervals[0]!.start).toEqual(new Date("2026-06-09T07:00:00Z"));
+  });
 });
 
 describe("fetchBusy", () => {
