@@ -85,6 +85,8 @@
       .slot-collapsed .slots-col-list { gap: 0; }
       .slot-collapsed .slot-change-link { display: block; }
     }
+    .privacy-note { font-size: 0.75rem; color: var(--muted); text-align: center; margin-top: 0.5rem; }
+    .privacy-note a { color: var(--muted); }
   </style>
 </head>
 <body>
@@ -121,6 +123,7 @@
         confirm: 'Confirm booking', confirming: 'Booking…',
         errName: 'Please enter your name.', errEmail: 'Please enter a valid email.',
         errGeneric: 'Something went wrong.', change: 'Change time',
+        privacyNote: 'By booking you agree to our <a href="https://nils.ecke.lt/datenschutz/" target="_blank" rel="noopener">privacy policy</a>.',
         successTitle: "You're booked!", successEmail: 'A confirmation will be sent to your email.',
         days: ['Mo','Tu','We','Th','Fr','Sa','Su'],
         wday: ['Su','Mo','Tu','We','Th','Fr','Sa'],
@@ -136,6 +139,7 @@
         confirm: 'Buchung bestätigen', confirming: 'Wird gebucht…',
         errName: 'Bitte gib deinen Namen ein.', errEmail: 'Bitte gib eine gültige E-Mail ein.',
         errGeneric: 'Etwas ist schiefgelaufen.', change: 'Zeit ändern',
+        privacyNote: 'Mit der Buchung akzeptierst du die <a href="https://nils.ecke.lt/datenschutz/" target="_blank" rel="noopener">Datenschutzerklärung</a>.',
         successTitle: 'Gebucht!', successEmail: 'Eine Bestätigung wird an deine E-Mail gesendet.',
         days: ['Mo','Di','Mi','Do','Fr','Sa','So'],
         wday: ['So','Mo','Di','Mi','Do','Fr','Sa'],
@@ -151,6 +155,7 @@
         confirm: 'Confirmar reserva', confirming: 'Reservando…',
         errName: 'Por favor, introduce tu nombre.', errEmail: 'Por favor, introduce un correo válido.',
         errGeneric: 'Algo salió mal.', change: 'Cambiar hora',
+        privacyNote: 'Al reservar aceptas nuestra <a href="https://nils.ecke.lt/datenschutz/" target="_blank" rel="noopener">política de privacidad</a>.',
         successTitle: '¡Reservado!', successEmail: 'Se enviará una confirmación a tu correo.',
         days: ['Lu','Ma','Mi','Ju','Vi','Sá','Do'],
         wday: ['Do','Lu','Ma','Mi','Ju','Vi','Sá'],
@@ -307,6 +312,7 @@
           <div class="form-group"><label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label><textarea id="fNotes" placeholder="${T.phNotes}"></textarea></div>
           <div id="fErr" class="form-error" style="display:none"></div>
           <button type="submit" class="btn-confirm" id="btnOk">${T.confirm}</button>
+          <p class="privacy-note">${T.privacyNote}</p>
         </form>`;
       collapseForMobile(slot);
       document.getElementById('bForm').addEventListener('submit', async e=>{
@@ -339,5 +345,9 @@
     document.getElementById('nextMonth').addEventListener('click',()=>{viewMonth++;if(viewMonth>11){viewMonth=0;viewYear++;}renderCalendar();});
     renderCalendar();
   </script>
+  <footer style="text-align:center;padding:1.25rem 1rem 2rem;font-size:0.75rem;display:flex;justify-content:center;gap:1.5rem;">
+    <a href="https://nils.ecke.lt/impressum/" style="color:var(--muted);text-decoration:none;">Impressum</a>
+    <a href="https://nils.ecke.lt/datenschutz/" style="color:var(--muted);text-decoration:none;">Datenschutz</a>
+  </footer>
 </body>
 </html>
