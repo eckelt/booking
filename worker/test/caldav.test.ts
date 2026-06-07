@@ -144,6 +144,9 @@ describe("buildIcal", () => {
       name: "Jane Doe",
       notes: "Hello",
       jitsiUrl: "https://meet.jit.si/booking-123",
+      ownerEmail: "nils@ecke.lt",
+      ownerName: "Nils Eckelt",
+      bookerEmail: "jane@example.com",
     });
     expect(ical).toContain("BEGIN:VCALENDAR");
     expect(ical).toContain("UID:booking-123");
