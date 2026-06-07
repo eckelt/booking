@@ -10,6 +10,10 @@ OWNER_EMAIL = "nils@ecke.lt"
 CALDAV_CALENDAR_NILS = "bd0ce304-f055-4524-9273-80a7d8cee9f1"
 CALDAV_CALENDAR_OHANA = "0C692FAB-66C9-454F-B51D-D076560588DB"
 
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
 [[routes]]
 pattern = "book.ecke.lt/api/*"
 zone_name = "ecke.lt"

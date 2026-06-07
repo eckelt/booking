@@ -26,7 +26,7 @@ export default {
         return await handleBook(request, env, ctx);
       }
       if (url.pathname === "/api/cancel" && request.method === "GET") {
-        return await handleCancel(url, env);
+        return await handleCancel(url, request, env);
       }
       return json({ error: "not found" }, 404);
     } catch (err) {
@@ -35,6 +35,23 @@ export default {
     }
   },
 };
+
+async function checkRateLimit(
+  env: Env,
+  ip: string,
+  action: string,
+  limit: number,
+  windowSecs: number,
+): Promise<boolean> {
+  if (!env.RATE_LIMIT) return true;
+  const window = Math.floor(Date.now() / (windowSecs * 1000));
+  const key = `rl:${action}:${ip}:${window}`;
+  const val = await env.RATE_LIMIT.get(key);
+  const count = val ? parseInt(val, 10) : 0;
+  if (count >= limit) return false;
+  await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: windowSecs * 2 });
+  return true;
+}
 
 async function handleSlots(url: URL, env: Env): Promise<Response> {
   const durationMin = parseInt(url.searchParams.get("duration") ?? "30");
@@ -95,6 +112,11 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
 }
 
 async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  if (!(await checkRateLimit(env, ip, "book", 5, 3600))) {
+    return json({ error: "Zu viele Anfragen. Bitte versuche es später erneut." }, 429);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -120,7 +142,12 @@ async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Pr
   }
 }
 
-async function handleCancel(url: URL, env: Env): Promise<Response> {
+async function handleCancel(url: URL, request: Request, env: Env): Promise<Response> {
+  const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  if (!(await checkRateLimit(env, ip, "cancel", 10, 3600))) {
+    return html("<h2>Zu viele Anfragen.</h2>", 429);
+  }
+
   const uid = url.searchParams.get("uid")?.trim();
   if (!uid || !/^[\w-]+$/.test(uid)) {
     return html("<h2>Invalid cancellation link.</h2>", 400);
@@ -129,8 +156,8 @@ async function handleCancel(url: URL, env: Env): Promise<Response> {
   return html(`<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>Booking cancelled</title>
-<style>body{font-family:sans-serif;max-width:500px;margin:60px auto;padding:20px;color:#222}
-a{color:#0070f3}</style></head>
+<style>body{font-family:sans-serif;max-width:500px;margin:60px auto;padding:20px;color:#2c292d}
+a{color:#006e8a}</style></head>
 <body>
 <h2>Booking cancelled</h2>
 <p>Your booking has been removed from the calendar.</p>
