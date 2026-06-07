@@ -18,14 +18,14 @@
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #2D2A2E;
-        --surface: #403E41;
+        --bg: #19181a;
+        --surface: #2D2A2E;
         --text: #FCFCFA;
-        --muted: #939293;
+        --muted: #8a8a8a;
         --border: #5B5A5E;
         --primary: #AB9DF2;
         --primary-hover: #9D8FE0;
-        --on-primary: #2D2A2E;
+        --on-primary: #19181a;
         --danger: #FF6188;
       }
     }
@@ -215,7 +215,7 @@
         const el = document.createElement('div');
         el.className = 'cal-cell'; el.textContent = d;
         if (isSameDay(date, today)) el.classList.add('today');
-        if ((pairLeft&&isSameDay(date,pairLeft))||(pairRight&&isSameDay(date,pairRight))) {
+        if (pairLeft && isSameDay(date, pairLeft)) {
           el.classList.add('selected');
         } else if (isBookable(date)) {
           el.classList.add('bookable');

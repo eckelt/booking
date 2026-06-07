@@ -18,14 +18,14 @@
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #2D2A2E;
-        --surface: #403E41;
+        --bg: #19181a;
+        --surface: #2D2A2E;
         --text: #FCFCFA;
-        --muted: #939293;
+        --muted: #8a8a8a;
         --border: #5B5A5E;
         --primary: #AB9DF2;
         --primary-hover: #9D8FE0;
-        --on-primary: #2D2A2E;
+        --on-primary: #19181a;
         --danger: #FF6188;
       }
     }
@@ -45,16 +45,9 @@
       align-items: center;
       gap: 1rem;
     }
-    header a {
-      color: var(--primary);
-      text-decoration: none;
-      font-size: 0.875rem;
-    }
+    header a { color: var(--primary); text-decoration: none; font-size: 0.875rem; }
     header a:hover { text-decoration: underline; }
-    header h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
+    header h1 { font-size: 1.1rem; font-weight: 600; }
     .layout {
       display: grid;
       grid-template-columns: 320px 1fr;
@@ -64,221 +57,86 @@
       padding: 0 1rem;
       align-items: start;
     }
-    @media (max-width: 639px) {
-      .layout {
-        grid-template-columns: 1fr;
-        margin: 1rem auto;
-      }
-    }
-    .panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 1rem;
-    }
+    @media (max-width: 639px) { .layout { grid-template-columns: 1fr; margin: 1rem auto; } }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; }
     .calendar-panel { padding: 1.25rem; }
     .slots-panel { padding: 1.25rem; margin-left: 1rem; }
-    @media (max-width: 639px) {
-      .slots-panel { margin-left: 0; margin-top: 1rem; }
-    }
+    @media (max-width: 639px) { .slots-panel { margin-left: 0; margin-top: 1rem; } }
 
-    /* Calendar */
-    .cal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-    }
+    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
     .cal-title { font-weight: 600; font-size: 1rem; }
     .cal-nav {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 0.4rem;
-      color: var(--text);
-      cursor: pointer;
-      padding: 0.25rem 0.6rem;
-      font-size: 1rem;
-      line-height: 1;
-      transition: background 0.1s;
+      background: none; border: 1px solid var(--border); border-radius: 0.4rem;
+      color: var(--text); cursor: pointer; padding: 0.25rem 0.6rem;
+      font-size: 1rem; line-height: 1; transition: background 0.1s;
     }
     .cal-nav:hover { background: var(--bg); }
-    .cal-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 2px;
-    }
-    .cal-day-label {
-      text-align: center;
-      font-size: 0.75rem;
-      color: var(--muted);
-      padding: 0.25rem 0;
-      font-weight: 600;
-    }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-day-label { text-align: center; font-size: 0.75rem; color: var(--muted); padding: 0.25rem 0; font-weight: 600; }
     .cal-cell {
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 0.4rem;
-      font-size: 0.875rem;
-      cursor: default;
-      color: var(--muted);
-      transition: background 0.1s, color 0.1s;
-      user-select: none;
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      border-radius: 0.4rem; font-size: 0.875rem; cursor: default; color: var(--muted);
+      transition: background 0.1s, color 0.1s; user-select: none;
     }
     .cal-cell.empty { background: transparent; }
     .cal-cell.disabled { color: var(--muted); opacity: 0.4; }
     .cal-cell.bookable { color: var(--text); cursor: pointer; }
-    .cal-cell.bookable:hover {
-      background: color-mix(in srgb, var(--primary) 15%, transparent);
-      color: var(--primary);
-    }
-    .cal-cell.selected {
-      background: var(--primary) !important;
-      color: var(--on-primary) !important;
-    }
+    .cal-cell.bookable:hover { background: color-mix(in srgb, var(--primary) 15%, transparent); color: var(--primary); }
+    .cal-cell.selected { background: var(--primary) !important; color: var(--on-primary) !important; }
     .cal-cell.today { font-weight: 700; }
 
-    /* Two-column slot area */
-    .slots-nav {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.25rem;
-      margin-bottom: 0.75rem;
-    }
+    .slots-nav { display: flex; align-items: flex-start; gap: 0.25rem; margin-bottom: 0.75rem; }
     .slots-nav-arrow {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 0.4rem;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 1.2rem;
-      line-height: 1;
-      padding: 0.3rem 0.55rem;
-      flex-shrink: 0;
-      margin-top: 0.1rem;
-      transition: background 0.1s;
+      background: none; border: 1px solid var(--border); border-radius: 0.4rem;
+      color: var(--text); cursor: pointer; font-size: 1.2rem; line-height: 1;
+      padding: 0.3rem 0.55rem; flex-shrink: 0; margin-top: 0.1rem; transition: background 0.1s;
     }
     .slots-nav-arrow:hover:not(:disabled) { background: var(--bg); }
     .slots-nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
-    .slots-day-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.5rem;
-      flex: 1;
-    }
+    .slots-day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; flex: 1; }
     .slots-day-col { min-width: 0; }
     .slots-day-header { text-align: center; margin-bottom: 0.5rem; }
-    .slots-day-weekday {
-      font-weight: 600;
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .slots-day-num {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.2;
-    }
+    .slots-day-weekday { font-weight: 600; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .slots-day-num { font-size: 1.1rem; font-weight: 700; color: var(--text); line-height: 1.2; }
     .slots-col-list { display: flex; flex-direction: column; gap: 0.35rem; }
     .slot-btn {
-      background: transparent;
-      border: 1.5px solid var(--border);
-      border-radius: 999px;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 0.85rem;
-      padding: 0.45rem 0.5rem;
-      text-align: center;
-      width: 100%;
-      transition: border-color 0.1s, background 0.1s, color 0.1s;
+      background: transparent; border: 1.5px solid var(--border); border-radius: 999px;
+      color: var(--text); cursor: pointer; font-size: 0.85rem; padding: 0.45rem 0.5rem;
+      text-align: center; width: 100%; transition: border-color 0.1s, background 0.1s, color 0.1s;
     }
-    @media (max-width: 639px) {
-      .slot-btn { font-size: 0.78rem; padding: 0.4rem 0.25rem; }
-    }
-    .slot-btn:hover {
-      border-color: var(--primary);
-      background: color-mix(in srgb, var(--primary) 12%, transparent);
-      color: var(--primary);
-    }
-    .slot-btn.selected {
-      border-color: var(--primary);
-      background: var(--primary);
-      color: var(--on-primary);
-      font-weight: 600;
-    }
-    .slots-loading, .slots-empty {
-      color: var(--muted);
-      font-size: 0.85rem;
-      text-align: center;
-      padding: 0.75rem 0;
-    }
+    @media (max-width: 639px) { .slot-btn { font-size: 0.78rem; padding: 0.4rem 0.25rem; } }
+    .slot-btn:hover { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+    .slot-btn.selected { border-color: var(--primary); background: var(--primary); color: var(--on-primary); font-weight: 600; }
+    .slots-loading, .slots-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 0.75rem 0; }
 
-    /* Form */
     .booking-form {
-      margin-top: 1.5rem;
-      padding-top: 1.25rem;
-      border-top: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-      animation: fadeIn 0.2s ease;
+      margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 0.85rem; animation: fadeIn 0.2s ease;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
     .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
     label { font-size: 0.85rem; font-weight: 500; color: var(--muted); }
     input, textarea {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.95rem;
-      padding: 0.55rem 0.75rem;
-      transition: border-color 0.15s, box-shadow 0.15s;
-      width: 100%;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem;
+      color: var(--text); font-family: inherit; font-size: 0.95rem; padding: 0.55rem 0.75rem;
+      transition: border-color 0.15s, box-shadow 0.15s; width: 100%;
     }
-    input:focus, textarea:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
-      outline: none;
-    }
+    input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent); outline: none; }
     textarea { resize: vertical; min-height: 80px; }
     .btn-confirm {
-      background: var(--primary);
-      border: none;
-      border-radius: 0.5rem;
-      color: var(--on-primary);
-      cursor: pointer;
-      font-size: 0.95rem;
-      font-weight: 600;
-      padding: 0.7rem 1.25rem;
-      transition: background 0.15s, opacity 0.15s;
+      background: var(--primary); border: none; border-radius: 0.5rem;
+      color: var(--on-primary); cursor: pointer; font-size: 0.95rem; font-weight: 600;
+      padding: 0.7rem 1.25rem; transition: background 0.15s, opacity 0.15s;
     }
     .btn-confirm:hover { background: var(--primary-hover); }
     .btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
     .form-error { color: var(--danger); font-size: 0.875rem; }
 
-    /* Success */
-    .success-box {
-      text-align: center;
-      padding: 2rem;
-      animation: fadeIn 0.3s ease;
-    }
+    .success-box { text-align: center; padding: 2rem; animation: fadeIn 0.3s ease; }
     .success-icon { font-size: 3rem; margin-bottom: 0.75rem; }
     .success-box h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
     .success-box p { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.5rem; }
-    .jitsi-link {
-      display: inline-block;
-      margin-top: 0.75rem;
-      color: var(--primary);
-      font-weight: 600;
-      word-break: break-all;
-    }
+    .jitsi-link { display: inline-block; margin-top: 0.75rem; color: var(--primary); font-weight: 600; word-break: break-all; }
     .placeholder-text { color: var(--muted); font-size: 0.95rem; padding: 1rem 0; }
   </style>
 </head>
@@ -355,17 +213,14 @@
       for (let d=1; d<=days; d++) {
         const date = new Date(viewYear, viewMonth, d);
         const el = document.createElement('div');
-        el.className = 'cal-cell';
-        el.textContent = d;
+        el.className = 'cal-cell'; el.textContent = d;
         if (isSameDay(date, today)) el.classList.add('today');
-        if ((pairLeft && isSameDay(date,pairLeft)) || (pairRight && isSameDay(date,pairRight))) {
+        if (pairLeft && isSameDay(date, pairLeft)) {
           el.classList.add('selected');
         } else if (isBookable(date)) {
           el.classList.add('bookable');
           el.addEventListener('click', () => selectDay(date));
-        } else {
-          el.classList.add('disabled');
-        }
+        } else { el.classList.add('disabled'); }
         grid.appendChild(el);
       }
     }
@@ -378,10 +233,9 @@
         pairRight = null;
       } else {
         const next = stepWorkday(pairLeft, true);
-        pairRight = Math.round((next - today) / 86400000) <= 14 ? next : null;
+        pairRight = Math.round((next-today)/86400000) <= 14 ? next : null;
       }
-      renderCalendar();
-      renderSlotsPanel();
+      renderCalendar(); renderSlotsPanel();
       if (window.innerWidth < 640)
         document.getElementById('slotsPanel').scrollIntoView({ behavior:'smooth', block:'start' });
     }
@@ -451,7 +305,7 @@
 
     function shiftPair(dir) {
       selectedSlot = null;
-      const first = firstBookable(), last = lastBookable();
+      const first = firstBookable();
       if (dir === 1) {
         pairLeft = pairRight || stepWorkday(pairLeft, true);
         const next = stepWorkday(pairLeft, true);
