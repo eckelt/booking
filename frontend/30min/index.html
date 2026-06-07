@@ -268,12 +268,10 @@
       const params=new URLSearchParams(location.search);
       const preName=params.get('name')||'', preEmail=params.get('email')||'';
       const isReschedule=!!params.get('reschedule');
-      const roAttr=isReschedule&&preName?'readonly style="opacity:.6;cursor:default"':'';
-      const roAttrE=isReschedule&&preEmail?'readonly style="opacity:.6;cursor:default"':'';
       container.innerHTML=`
         <form class="booking-form" id="bForm" novalidate>
-          <div class="form-group"><label for="fName">${T.labelName}</label><input type="text" id="fName" placeholder="${T.phName}" value="${preName.replace(/"/g,'&quot;')}" ${roAttr} required /></div>
-          <div class="form-group"><label for="fEmail">${T.labelEmail}</label><input type="email" id="fEmail" placeholder="${T.phEmail}" value="${preEmail.replace(/"/g,'&quot;')}" ${roAttrE} required /></div>
+          <div class="form-group"><label for="fName">${T.labelName}</label><input type="text" id="fName" placeholder="${T.phName}" value="${preName.replace(/"/g,'&quot;')}" required /></div>
+          <div class="form-group"><label for="fEmail">${T.labelEmail}</label><input type="email" id="fEmail" placeholder="${T.phEmail}" value="${preEmail.replace(/"/g,'&quot;')}" required /></div>
           <div class="form-group"><label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label><textarea id="fNotes" placeholder="${T.phNotes}"></textarea></div>
           <div id="fErr" class="form-error" style="display:none"></div>
           <button type="submit" class="btn-confirm" id="btnOk">${T.confirm}</button>
