@@ -91,22 +91,22 @@ function buildBookerHtml(env: Env, p: EmailParams): string {
   const durationMin = Math.round((p.end.getTime() - p.start.getTime()) / 60000);
   return `<!DOCTYPE html>
 <html>
-<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#222">
-<h2 style="color:#1a1a1a">Booking confirmed</h2>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#2c292d">
+<h2 style="color:#006e8a;font-weight:600;margin-bottom:4px">Booking confirmed</h2>
 <table style="border-collapse:collapse;width:100%;margin:16px 0">
-<tr><td style="padding:6px 12px 6px 0;color:#666">Date</td><td style="padding:6px 0"><strong>${formatDate(p.start)}</strong></td></tr>
-<tr><td style="padding:6px 12px 6px 0;color:#666">Time</td><td style="padding:6px 0"><strong>${formatTime(p.start)} – ${formatTime(p.end)}</strong> (Europe/Berlin)</td></tr>
-<tr><td style="padding:6px 12px 6px 0;color:#666">Duration</td><td style="padding:6px 0">${durationMin} minutes</td></tr>
+<tr><td style="padding:6px 12px 6px 0;color:#736e73">Date</td><td style="padding:6px 0"><strong>${formatDate(p.start)}</strong></td></tr>
+<tr><td style="padding:6px 12px 6px 0;color:#736e73">Time</td><td style="padding:6px 0"><strong>${formatTime(p.start)} – ${formatTime(p.end)}</strong> (Europe/Berlin)</td></tr>
+<tr><td style="padding:6px 12px 6px 0;color:#736e73">Duration</td><td style="padding:6px 0">${durationMin} minutes</td></tr>
 </table>
-<p><a href="${p.jitsiUrl}" style="display:inline-block;padding:12px 24px;background:#0070f3;color:#fff;text-decoration:none;border-radius:6px">Join video call</a></p>
-<p style="color:#666;font-size:14px">No app needed — works in your browser.</p>
+<p><a href="${p.jitsiUrl}" style="display:inline-block;padding:12px 24px;background:#006e8a;color:#fff;text-decoration:none;border-radius:999px">Join video call</a></p>
+<p style="color:#736e73;font-size:14px">No app needed — works in your browser.</p>
 ${p.notes ? `<p><strong>Notes:</strong><br>${escapeHtml(p.notes)}</p>` : ""}
 <p>Looking forward to talking!<br>${escapeHtml(env.OWNER_NAME)}</p>
-<hr style="border:none;border-top:1px solid #eee;margin:24px 0">
-<p style="color:#666;font-size:14px">Need to change your plans?</p>
+<hr style="border:none;border-top:1px solid #e8e2dc;margin:24px 0">
+<p style="color:#736e73;font-size:14px">Need to change your plans?</p>
 <p>
-  <a href="${p.rescheduleUrl}" style="display:inline-block;padding:10px 20px;background:#f5f5f5;color:#333;text-decoration:none;border-radius:6px;margin-right:8px">Reschedule</a>
-  <a href="${p.cancelUrl}" style="display:inline-block;padding:10px 20px;background:#f5f5f5;color:#c00;text-decoration:none;border-radius:6px">Cancel booking</a>
+  <a href="${p.rescheduleUrl}" style="display:inline-block;padding:10px 20px;border:1px solid #e8e2dc;color:#736e73;text-decoration:none;border-radius:999px;margin-right:8px">Reschedule</a>
+  <a href="${p.cancelUrl}" style="display:inline-block;padding:10px 20px;border:1px solid #e8e2dc;color:#b01040;text-decoration:none;border-radius:999px">Cancel booking</a>
 </p>
 </body>
 </html>`;
@@ -141,7 +141,7 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// ── SMTP (Fastmail, port 465 implicit TLS) ────────────────────────────────────
+// ── SMTP (Fastmail, port 465 implicit TLS) ────────────────────────────────────────────
 
 interface SmtpMessage {
   from: string;
