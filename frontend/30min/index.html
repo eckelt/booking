@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Book a 30-minute call</title>
+  <title>Book a call</title>
   <style>
     :root {
       --bg: #fdf9f3; --surface: #fff; --text: #2c292d; --muted: #736e73;
@@ -74,12 +74,17 @@
     .success-box p { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.5rem; }
     .jitsi-link { display: inline-block; margin-top: 0.75rem; color: var(--primary); font-weight: 600; word-break: break-all; }
     .placeholder-text { color: var(--muted); font-size: 0.95rem; padding: 1rem 0; }
+    .slot-summary { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0 0.75rem; border-bottom: 1px solid var(--border); }
+    .slot-summary-time { font-weight: 600; font-size: 0.9rem; color: var(--primary); }
+    .slot-summary-change { background: none; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); cursor: pointer; font-size: 0.78rem; padding: 0.2rem 0.65rem; font-family: inherit; transition: border-color 0.1s, color 0.1s; white-space: nowrap; }
+    .slot-summary-change:hover { border-color: var(--primary); color: var(--primary); }
+    @media (max-width: 639px) { .slot-collapsed .slots-nav { display: none; } }
   </style>
 </head>
 <body>
   <header>
     <a href="/" id="backLink">&larr; Back</a>
-    <h1 id="pageTitle">Book a 30-minute call</h1>
+    <h1 id="pageTitle">Book a call</h1>
   </header>
   <div class="layout">
     <div class="panel calendar-panel">
@@ -95,13 +100,13 @@
     </div>
   </div>
   <script>
-    const DURATION = 30;
+    const DURATION = /60/.test(location.pathname) ? 60 : 30;
     const API = 'https://book.ecke.lt/api';
     const TZ = 'Europe/Berlin';
 
     const LANGS = {
       en: {
-        title: 'Book a 30-minute call', back: '← Back',
+        title: `Book a ${DURATION}-minute call`, back: '← Back',
         placeholder: 'Select a day to see available slots.',
         loading: 'Loading…', error: 'Error', none: 'None',
         labelName: 'Your name', phName: 'Jane Smith',
@@ -109,14 +114,14 @@
         labelNotes: 'Notes', optional: '(optional)', phNotes: 'What would you like to discuss?',
         confirm: 'Confirm booking', confirming: 'Booking…',
         errName: 'Please enter your name.', errEmail: 'Please enter a valid email.',
-        errGeneric: 'Something went wrong.',
+        errGeneric: 'Something went wrong.', change: 'Change time',
         successTitle: "You're booked!", successEmail: 'A confirmation will be sent to your email.',
         days: ['Mo','Tu','We','Th','Fr','Sa','Su'],
         wday: ['Su','Mo','Tu','We','Th','Fr','Sa'],
         locale: 'en-GB',
       },
       de: {
-        title: '30-Minuten-Gespräch buchen', back: '← Zurück',
+        title: `${DURATION}-Minuten-Gespräch buchen`, back: '← Zurück',
         placeholder: 'Wähle einen Tag, um verfügbare Zeiten zu sehen.',
         loading: 'Lädt…', error: 'Fehler', none: 'Keine',
         labelName: 'Dein Name', phName: 'Max Mustermann',
@@ -124,14 +129,14 @@
         labelNotes: 'Notizen', optional: '(optional)', phNotes: 'Worüber möchtest du sprechen?',
         confirm: 'Buchung bestätigen', confirming: 'Wird gebucht…',
         errName: 'Bitte gib deinen Namen ein.', errEmail: 'Bitte gib eine gültige E-Mail ein.',
-        errGeneric: 'Etwas ist schiefgelaufen.',
+        errGeneric: 'Etwas ist schiefgelaufen.', change: 'Zeit ändern',
         successTitle: 'Gebucht!', successEmail: 'Eine Bestätigung wird an deine E-Mail gesendet.',
         days: ['Mo','Di','Mi','Do','Fr','Sa','So'],
         wday: ['So','Mo','Di','Mi','Do','Fr','Sa'],
         locale: 'de-DE',
       },
       es: {
-        title: 'Reservar llamada de 30 minutos', back: '← Volver',
+        title: `Reservar llamada de ${DURATION} minutos`, back: '← Volver',
         placeholder: 'Selecciona un día para ver los horarios disponibles.',
         loading: 'Cargando…', error: 'Error', none: 'Ninguno',
         labelName: 'Tu nombre', phName: 'Juan García',
@@ -139,7 +144,7 @@
         labelNotes: 'Notas', optional: '(opcional)', phNotes: '¿De qué te gustaría hablar?',
         confirm: 'Confirmar reserva', confirming: 'Reservando…',
         errName: 'Por favor, introduce tu nombre.', errEmail: 'Por favor, introduce un correo válido.',
-        errGeneric: 'Algo salió mal.',
+        errGeneric: 'Algo salió mal.', change: 'Cambiar hora',
         successTitle: '¡Reservado!', successEmail: 'Se enviará una confirmación a tu correo.',
         days: ['Lu','Ma','Mi','Ju','Vi','Sá','Do'],
         wday: ['Do','Lu','Ma','Mi','Ju','Vi','Sá'],
@@ -159,6 +164,7 @@
     function startOfDay(d) { const r = new Date(d); r.setHours(0,0,0,0); return r; }
     function formatDateISO(d) { return d.toLocaleDateString('sv-SE'); }
     function formatSlotTime(iso) { return new Date(iso).toLocaleTimeString(T.locale, { hour:'2-digit', minute:'2-digit', timeZone: TZ }); }
+    function formatSlotSummary(iso) { const d=new Date(iso); return d.toLocaleDateString(T.locale,{weekday:'short',day:'numeric',month:'short',timeZone:TZ})+', '+d.toLocaleTimeString(T.locale,{hour:'2-digit',minute:'2-digit',timeZone:TZ}); }
     function isSameDay(a,b) { return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate(); }
     function isWorkday(d) { const w=d.getDay(); return w>=1&&w<=5; }
     function stepWorkday(date, fwd) { const d=new Date(date); do { d.setDate(d.getDate()+(fwd?1:-1)); } while(!isWorkday(d)); return d; }
@@ -217,6 +223,7 @@
 
     function renderSlotsPanel() {
       const panel=document.getElementById('slotsPanel');
+      panel.classList.remove('slot-collapsed');
       if(!pairLeft) { panel.innerHTML=`<p class="placeholder-text">${T.placeholder}</p>`; return; }
       const first=firstBookable(), last=lastBookable();
       const prevDis=isSameDay(pairLeft,first);
@@ -264,6 +271,26 @@
       renderCalendar(); renderSlotsPanel();
     }
 
+    function collapseForMobile(slot) {
+      if (window.innerWidth >= 640) return;
+      const existing = document.getElementById('slotSummary');
+      if (existing) existing.remove();
+      const panel = document.getElementById('slotsPanel');
+      panel.classList.add('slot-collapsed');
+      const fc = document.getElementById('formContainer');
+      const s = document.createElement('div');
+      s.id = 'slotSummary'; s.className = 'slot-summary';
+      s.innerHTML = `<span class="slot-summary-time">${formatSlotSummary(slot.start)}</span><button class="slot-summary-change">${T.change}</button>`;
+      panel.insertBefore(s, fc);
+      s.querySelector('.slot-summary-change').addEventListener('click', () => {
+        panel.classList.remove('slot-collapsed');
+        s.remove();
+        selectedSlot = null;
+        document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+        fc.innerHTML = '';
+      });
+    }
+
     function showForm(container, slot) {
       const params=new URLSearchParams(location.search);
       const preName=params.get('name')||'', preEmail=params.get('email')||'';
@@ -276,6 +303,7 @@
           <div id="fErr" class="form-error" style="display:none"></div>
           <button type="submit" class="btn-confirm" id="btnOk">${T.confirm}</button>
         </form>`;
+      collapseForMobile(slot);
       document.getElementById('bForm').addEventListener('submit', async e=>{
         e.preventDefault();
         const name=document.getElementById('fName').value.trim();
