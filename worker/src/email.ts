@@ -105,8 +105,8 @@ ${p.notes ? `<p><strong>Notes:</strong><br>${escapeHtml(p.notes)}</p>` : ""}
 <hr style="border:none;border-top:1px solid #e8e2dc;margin:24px 0">
 <p style="color:#736e73;font-size:14px">Need to change your plans?</p>
 <p>
-  <a href="${p.rescheduleUrl}" style="display:inline-block;padding:10px 20px;border:1px solid #e8e2dc;color:#736e73;text-decoration:none;border-radius:999px;margin-right:8px">Reschedule</a>
-  <a href="${p.cancelUrl}" style="display:inline-block;padding:10px 20px;border:1px solid #e8e2dc;color:#b01040;text-decoration:none;border-radius:999px">Cancel booking</a>
+  <a href="${p.rescheduleUrl}" style="display:inline-block;padding:10px 20px;background:#edf4f6;border:1px solid #e8e2dc;color:#4a6b73;text-decoration:none;border-radius:999px;margin-right:8px">Reschedule</a>
+  <a href="${p.cancelUrl}" style="display:inline-block;padding:10px 20px;background:#fdf0f2;border:1px solid #e8e2dc;color:#b01040;text-decoration:none;border-radius:999px">Cancel booking</a>
 </p>
 </body>
 </html>`;
