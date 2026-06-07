@@ -138,59 +138,66 @@ interface SmtpMessage {
 }
 
 async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
-  // Cloudflare Workers support outbound TCP via the connect() API (nodejs_compat)
-  // We use port 465 (SMTPS — implicit TLS)
   const { connect } = await import("cloudflare:sockets");
   const socket = connect({ hostname: "smtp.fastmail.com", port: 465 }, { secureTransport: "on" });
 
   const writer = socket.writable.getWriter();
   const reader = socket.readable.getReader();
+  const dec = new TextDecoder();
+  let lineBuf = "";
+
+  // Read one CRLF-terminated line, buffering leftovers for the next call.
+  const readLine = async (): Promise<string> => {
+    while (true) {
+      const idx = lineBuf.indexOf("\r\n");
+      if (idx !== -1) {
+        const line = lineBuf.slice(0, idx);
+        lineBuf = lineBuf.slice(idx + 2);
+        return line;
+      }
+      const { value, done } = await reader.read();
+      if (done) throw new Error("SMTP: connection closed unexpectedly");
+      lineBuf += dec.decode(value, { stream: true });
+    }
+  };
+
+  // Read all lines of a multi-line SMTP response (e.g. "250-foo\r\n250 bar\r\n")
+  // and return the final line.
+  const readResponse = async (): Promise<string> => {
+    let line = "";
+    do {
+      line = await readLine();
+    } while (line.length >= 4 && line[3] === "-");
+    return line;
+  };
 
   const send = async (line: string) => {
     await writer.write(new TextEncoder().encode(line + "\r\n"));
   };
 
-  const readLine = async (): Promise<string> => {
-    let buf = "";
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += new TextDecoder().decode(value);
-      if (buf.includes("\r\n")) break;
-    }
-    return buf.trim();
-  };
-
-  await readLine(); // 220 greeting
-
-  await send(`EHLO book.ecke.lt`);
-  let ehlo = "";
-  while (true) {
-    const line = await readLine();
-    ehlo += line;
-    if (line.startsWith("250 ")) break;
-  }
-  void ehlo;
+  await readResponse(); // 220 greeting
+  await send("EHLO book.ecke.lt");
+  await readResponse(); // 250 capabilities (multi-line)
 
   // AUTH PLAIN
   const authStr = btoa(`\x00${env.SMTP_USERNAME}\x00${env.SMTP_PASSWORD}`);
   await send(`AUTH PLAIN ${authStr}`);
-  await readLine(); // 235
+  const authReply = await readResponse();
+  if (!authReply.startsWith("235")) throw new Error(`SMTP AUTH failed: ${authReply}`);
 
   await send(`MAIL FROM:<${env.OWNER_EMAIL}>`);
-  await readLine();
+  await readResponse();
 
   const toAddr = msg.to.match(/<(.+)>/)?.[1] ?? msg.to;
   await send(`RCPT TO:<${toAddr}>`);
-  await readLine();
+  await readResponse();
 
   await send("DATA");
-  await readLine(); // 354
+  await readResponse(); // 354
 
-  const rawMsg = buildRawMessage(msg);
-  await send(rawMsg);
+  await send(buildRawMessage(msg));
   await send(".");
-  await readLine(); // 250
+  await readResponse(); // 250
 
   await send("QUIT");
   await reader.cancel();

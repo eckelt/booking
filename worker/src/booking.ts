@@ -86,7 +86,8 @@ export async function createBooking(
 
   await putEvent(env, uid, ical, fetcher);
 
-  await sendEmails(env, {
+  // Fire-and-forget: booking is already written to CalDAV, don't let SMTP delay the response
+  sendEmails(env, {
     uid,
     start,
     end,
@@ -95,7 +96,7 @@ export async function createBooking(
     notes: req.notes ?? "",
     jitsiUrl,
     icalAttachment: ical,
-  });
+  }).catch(err => console.error("sendEmails failed:", err));
 
   return {
     uid,
