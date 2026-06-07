@@ -112,7 +112,7 @@ export async function createBooking(
       jitsiUrl,
       icalAttachment: ical,
       cancelUrl: `https://book.ecke.lt/api/cancel?uid=${uid}`,
-      rescheduleUrl: `https://book.ecke.lt/${durationPath}/?reschedule=${uid}`,
+      rescheduleUrl: `https://book.ecke.lt/${durationPath}/?reschedule=${uid}&name=${encodeURIComponent(req.name)}&email=${encodeURIComponent(req.email)}`,
     }).catch((err) => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`))
   );
 
