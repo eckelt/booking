@@ -203,9 +203,8 @@
     async function fetchSlots(date) {
       const iso=formatDateISO(date);
       if(slotCache[iso]!==undefined) return slotCache[iso];
-      const toDate=new Date(date); toDate.setDate(toDate.getDate()+1);
       try {
-        const res=await fetch(`${API}/slots?duration=${DURATION}&from=${encodeURIComponent(iso)}&to=${encodeURIComponent(formatDateISO(toDate))}`);
+        const res=await fetch(`${API}/slots?duration=${DURATION}&from=${encodeURIComponent(iso)}&to=${encodeURIComponent(iso)}`);
         if(!res.ok) throw new Error();
         slotCache[iso]=(await res.json()).slots||[];
       } catch { slotCache[iso]=null; }

@@ -155,31 +155,35 @@ export function parseMultiStatusIntervals(xml: string): Interval[] {
 }
 
 function parseVevent(ical: string): Interval | null {
-  const get = (prop: string) => {
+  // Extract a property line by name, returning the full "PROPNAME;params:VALUE" line.
+  const getLine = (prop: string): string | null => {
     const m = new RegExp(`^${prop}[;:][^\r\n]*`, "m").exec(ical);
-    return m ? m[0].split(/:/).slice(1).join(":").trim() : null;
+    return m ? m[0] : null;
   };
 
-  const status = get("STATUS");
-  if (status === "CANCELLED") return null;
+  const getVal = (line: string): string =>
+    line.slice(line.indexOf(":") + 1).trim();
 
-  const transp = get("TRANSP");
-  if (transp === "TRANSPARENT") return null;
+  const statusLine = getLine("STATUS");
+  if (statusLine && getVal(statusLine) === "CANCELLED") return null;
 
-  const dtStartRaw = get("DTSTART");
-  if (!dtStartRaw) return null;
+  const transpLine = getLine("TRANSP");
+  if (transpLine && getVal(transpLine) === "TRANSPARENT") return null;
 
-  const start = parseIcalDate(dtStartRaw);
+  const dtStartLine = getLine("DTSTART");
+  if (!dtStartLine) return null;
+
+  const start = parseIcalDateLine(dtStartLine);
   if (!start) return null;
 
   let end: Date | null = null;
-  const dtEndRaw = get("DTEND");
-  if (dtEndRaw) {
-    end = parseIcalDate(dtEndRaw);
+  const dtEndLine = getLine("DTEND");
+  if (dtEndLine) {
+    end = parseIcalDateLine(dtEndLine);
   } else {
-    const durationRaw = get("DURATION");
-    if (durationRaw) {
-      end = new Date(start.getTime() + parseDuration(durationRaw));
+    const durLine = getLine("DURATION");
+    if (durLine) {
+      end = new Date(start.getTime() + parseDuration(getVal(durLine)));
     }
   }
 
@@ -187,21 +191,58 @@ function parseVevent(ical: string): Interval | null {
   return { start, end };
 }
 
-function parseIcalDate(raw: string): Date | null {
-  if (/^\d{8}$/.test(raw)) {
-    return new Date(`${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}T00:00:00Z`);
-  }
-  if (/^\d{8}T\d{6}Z$/.test(raw)) {
+// Parse a full iCal property line like:
+//   DTSTART;TZID=Europe/Berlin:20260608T103000
+//   DTSTART:20260608T103000Z
+//   DTSTART:20260608
+function parseIcalDateLine(line: string): Date | null {
+  const colonIdx = line.indexOf(":");
+  if (colonIdx === -1) return null;
+
+  const params = line.slice(0, colonIdx);
+  const value = line.slice(colonIdx + 1).trim();
+
+  // UTC datetime: 20260608T103000Z
+  if (/^\d{8}T\d{6}Z$/.test(value)) {
     return new Date(
-      `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}T${raw.slice(9, 11)}:${raw.slice(11, 13)}:${raw.slice(13, 15)}Z`
+      `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}` +
+      `T${value.slice(9, 11)}:${value.slice(11, 13)}:${value.slice(13, 15)}Z`
     );
   }
-  if (/^\d{8}T\d{6}$/.test(raw)) {
-    return new Date(
-      `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}T${raw.slice(9, 11)}:${raw.slice(11, 13)}:${raw.slice(13, 15)}Z`
-    );
+
+  // All-day date: 20260608
+  if (/^\d{8}$/.test(value)) {
+    return new Date(`${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T00:00:00Z`);
   }
+
+  // Local datetime with TZID: DTSTART;TZID=Europe/Berlin:20260608T103000
+  if (/^\d{8}T\d{6}$/.test(value)) {
+    const tzid = /TZID=([^;:]+)/.exec(params)?.[1] ?? "UTC";
+    const localStr =
+      `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}` +
+      `T${value.slice(9, 11)}:${value.slice(11, 13)}:${value.slice(13, 15)}`;
+    return localToUtc(localStr, tzid);
+  }
+
   return null;
+}
+
+// Convert a local datetime string ("2026-06-08T10:30:00") in a given tz to UTC.
+function localToUtc(localStr: string, tzid: string): Date {
+  // Parse as if UTC, then find the offset that tz has at that approximate time,
+  // and correct back to get the true UTC instant.
+  const naive = new Date(localStr + "Z");
+  const localRepr = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: tzid,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).format(naive);
+  // sv-SE gives "2026-06-08 12:30:00" (the local time that naive UTC maps to)
+  const asUtcMs = new Date(localRepr.replace(" ", "T") + "Z").getTime();
+  // offsetMs = how far the tz is from UTC (positive = ahead of UTC)
+  const offsetMs = asUtcMs - naive.getTime();
+  return new Date(naive.getTime() - offsetMs);
 }
 
 function parseDuration(raw: string): number {
