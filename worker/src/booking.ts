@@ -42,6 +42,7 @@ export function validateBookingRequest(body: unknown): BookingRequest {
 export async function createBooking(
   env: Env,
   req: BookingRequest,
+  ctx: ExecutionContext,
   fetcher: typeof fetch = fetch
 ): Promise<BookingResult> {
   const start = new Date(req.start);
@@ -86,16 +87,18 @@ export async function createBooking(
   await putEvent(env, uid, ical, fetcher);
 
   // Email is best-effort — a failure must not roll back the booking
-  sendEmails(env, {
-    uid,
-    start,
-    end,
-    name: req.name,
-    bookerEmail: req.email,
-    notes: req.notes ?? "",
-    jitsiUrl,
-    icalAttachment: ical,
-  }).catch((err) => console.error("sendEmails failed:", err));
+  ctx.waitUntil(
+    sendEmails(env, {
+      uid,
+      start,
+      end,
+      name: req.name,
+      bookerEmail: req.email,
+      notes: req.notes ?? "",
+      jitsiUrl,
+      icalAttachment: ical,
+    }).catch((err) => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`))
+  );
 
   return {
     uid,
