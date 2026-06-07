@@ -2,10 +2,599 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=/30min/?duration=60">
-<title>60-minute booking</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book a 60-minute call</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:            #f9f9f9;
+    --surface:       #fff;
+    --text:          #111;
+    --muted:         #666;
+    --border:        #ddd;
+    --primary:       #c8910a;
+    --primary-hover: #a87508;
+    --on-primary:    #fff;
+    --danger:        #c62828;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:            #19181a;
+      --surface:       #2D2A2E;
+      --text:          #FCFCFA;
+      --muted:         #8a8a8a;
+      --border:        #5B5A5E;
+      --primary:       #FFD866;
+      --primary-hover: #F5CA4A;
+      --on-primary:    #19181a;
+      --danger:        #FF6188;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 0.15rem; }
+  .subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem; }
+
+  /* ── Calendar ── */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+  .cal-header .month-label { font-weight: 600; font-size: 1rem; }
+  .cal-nav { background: none; border: none; cursor: pointer; font-size: 1.2rem; padding: 4px 8px; border-radius: 50%; color: var(--muted); line-height: 1; }
+  .cal-nav:hover { background: var(--surface); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 1.75rem; }
+  .cal-dow { text-align: center; font-size: 0.72rem; font-weight: 600; color: var(--muted); padding: 4px 0 6px; }
+  .cal-day {
+    display: flex; align-items: center; justify-content: center;
+    aspect-ratio: 1; border-radius: 50%;
+    font-size: 0.82rem; cursor: default;
+    color: var(--border); position: relative;
+  }
+  .cal-day.other-month { color: var(--border); opacity: 0.5; }
+  .cal-day.past { color: var(--muted); opacity: 0.4; }
+  .cal-day.today { font-weight: 700; color: var(--text); }
+  .cal-day.today::after {
+    content: '';
+    position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--primary);
+  }
+  .cal-day.available {
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .cal-day.available:hover { background: var(--surface); }
+  .cal-day.selected {
+    background: var(--primary);
+    color: var(--on-primary);
+    font-weight: 700;
+  }
+
+  /* ── Slot columns ── */
+  .slots-section { display: none; }
+  .slots-section.visible { display: block; }
+  .slots-nav { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+  .slots-nav-btn {
+    background: none; border: 1px solid var(--border); border-radius: 50%;
+    width: 32px; height: 32px; cursor: pointer; font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); flex-shrink: 0;
+  }
+  .slots-nav-btn:hover:not(:disabled) { background: var(--surface); border-color: var(--muted); }
+  .slots-nav-btn:disabled { opacity: 0.35; cursor: default; }
+  .slots-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .slots-col-header {
+    font-size: 0.78rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 0.6rem; text-align: center;
+  }
+  .slots-col-header.no-slots-header { color: var(--border); }
+  .slots-list { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+  .slot-btn {
+    padding: 9px 12px;
+    border: 1.5px solid var(--primary);
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer; font-size: 0.88rem; text-align: center;
+    color: var(--primary); font-weight: 500;
+    transition: background 0.12s, color 0.12s;
+  }
+  .slot-btn:hover { background: color-mix(in srgb, var(--primary) 15%, transparent); }
+  .slot-btn.selected { background: var(--primary); color: var(--on-primary); }
+  .no-slots-msg { font-size: 0.82rem; color: var(--muted); text-align: center; padding: 8px 0; }
+  .slots-loading { font-size: 0.85rem; color: var(--muted); font-style: italic; text-align: center; padding: 12px 0; grid-column: 1 / -1; }
+
+  /* ── Form ── */
+  .step { display: none; }
+  .step.active { display: block; }
+  label { display: block; margin-bottom: 0.25rem; font-weight: 500; font-size: 0.9rem; color: var(--text); }
+  input, textarea {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 1rem; margin-bottom: 1rem; font-family: inherit;
+    background: var(--surface); color: var(--text);
+  }
+  input::placeholder, textarea::placeholder { color: var(--muted); }
+  input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+  textarea { resize: vertical; min-height: 80px; }
+  .btn {
+    display: inline-block; padding: 11px 22px;
+    background: var(--primary); color: var(--on-primary);
+    border: none; border-radius: 8px; font-size: 0.95rem; cursor: pointer;
+  }
+  .btn:hover { background: var(--primary-hover); }
+  .btn-secondary {
+    background: transparent; color: var(--primary);
+    border: 1.5px solid var(--primary); margin-right: 8px;
+  }
+  .btn-secondary:hover { background: color-mix(in srgb, var(--primary) 15%, transparent); }
+  .error { color: var(--danger); margin-bottom: 1rem; font-size: 0.88rem; }
+  .success-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem;
+  }
+  .success-box h2 { color: var(--primary); margin-bottom: 0.5rem; }
+  .jitsi-link {
+    display: inline-block; margin-top: 1rem; padding: 10px 20px;
+    background: var(--primary); color: var(--on-primary);
+    border-radius: 8px; text-decoration: none; font-size: 0.95rem;
+  }
+  .jitsi-link:hover { background: var(--primary-hover); }
+  .booking-summary-line { margin-bottom: 1.5rem; color: var(--muted); font-size: 0.95rem; }
+  .booking-summary-line strong { color: var(--text); }
+</style>
 </head>
 <body>
-<p><a href="/30min/?duration=60">Book a 60-minute call</a></p>
+<div class="container">
+  <h1 id="page-title"></h1>
+  <p class="subtitle" id="page-subtitle"></p>
+
+  <!-- Step 1+2: calendar + slot picker -->
+  <div class="step active" id="step-pick">
+    <div class="cal-header">
+      <button class="cal-nav" id="cal-prev" onclick="shiftMonth(-1)">&#8249;</button>
+      <span class="month-label" id="cal-month-label"></span>
+      <button class="cal-nav" id="cal-next" onclick="shiftMonth(1)">&#8250;</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+
+    <div class="slots-section" id="slots-section">
+      <div class="slots-nav">
+        <button class="slots-nav-btn" id="slots-prev" onclick="shiftDayPair(-1)">&#8249;</button>
+        <div style="flex:1"></div>
+        <button class="slots-nav-btn" id="slots-next" onclick="shiftDayPair(1)">&#8250;</button>
+      </div>
+      <div class="slots-columns" id="slots-columns">
+        <div class="slots-loading" id="slots-loading"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: enter details -->
+  <div class="step" id="step-form">
+    <p class="booking-summary-line">
+      <span id="booking-summary-prefix"></span>
+      <strong id="booking-summary"></strong>
+    </p>
+    <label for="name" id="label-name"></label>
+    <input type="text" id="name" maxlength="100">
+    <label for="email" id="label-email"></label>
+    <input type="email" id="email">
+    <label for="notes" id="label-notes"></label>
+    <textarea id="notes" maxlength="1000"></textarea>
+    <div id="form-error" class="error"></div>
+    <button class="btn btn-secondary" id="back-btn" onclick="goToStep('step-pick')"></button>
+    <button class="btn" id="confirm-btn" onclick="submitBooking()"></button>
+  </div>
+
+  <!-- Step 4: success -->
+  <div class="step" id="step-success">
+    <div class="success-box">
+      <h2 id="success-title"></h2>
+      <p id="success-details"></p>
+      <a class="jitsi-link" id="jitsi-link" href="#" target="_blank" rel="noopener" id="join-btn"></a>
+      <p style="margin-top:1rem;color:var(--muted);font-size:0.9rem" id="success-email-hint"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── i18n ──────────────────────────────────────────────────────────────────────
+const LANGS = {
+  en: {
+    title:        'Book a 60-minute call',
+    subtitle:     'with Nils Eckelt',
+    days:         ['Mo','Tu','We','Th','Fr','Sa','Su'],
+    loading:      'Loading available times…',
+    noSlots:      'No slots',
+    bookingWith:  'Booking: ',
+    labelName:    'Your name',
+    phName:       'Jane Doe',
+    labelEmail:   'Your email',
+    phEmail:      'jane@example.com',
+    labelNotes:   'Notes (optional)',
+    phNotes:      'What would you like to discuss?',
+    back:         '← Back',
+    confirm:      'Confirm booking',
+    confirming:   'Confirming…',
+    errName:      'Please enter your name.',
+    errEmail:     'Please enter a valid email.',
+    errTaken:     'This slot was just taken. Please go back and choose another time.',
+    errGeneric:   'Something went wrong. Please try again.',
+    errNetwork:   'Network error. Please try again.',
+    successTitle: 'Booking confirmed!',
+    joinCall:     'Join video call',
+    emailHint:    'Check your email for a calendar invite.',
+    locale:       'en-GB',
+  },
+  de: {
+    title:        '60-Minuten-Gespräch buchen',
+    subtitle:     'mit Nils Eckelt',
+    days:         ['Mo','Di','Mi','Do','Fr','Sa','So'],
+    loading:      'Verfügbare Zeiten werden geladen…',
+    noSlots:      'Keine Slots',
+    bookingWith:  'Buchung: ',
+    labelName:    'Dein Name',
+    phName:       'Max Mustermann',
+    labelEmail:   'Deine E-Mail',
+    phEmail:      'max@beispiel.de',
+    labelNotes:   'Notizen (optional)',
+    phNotes:      'Worüber möchtest du sprechen?',
+    back:         '← Zurück',
+    confirm:      'Buchung bestätigen',
+    confirming:   'Wird bestätigt…',
+    errName:      'Bitte gib deinen Namen ein.',
+    errEmail:     'Bitte gib eine gültige E-Mail-Adresse ein.',
+    errTaken:     'Dieser Slot wurde gerade vergeben. Bitte wähle eine andere Zeit.',
+    errGeneric:   'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
+    errNetwork:   'Netzwerkfehler. Bitte versuche es erneut.',
+    successTitle: 'Buchung bestätigt!',
+    joinCall:     'Videoanruf beitreten',
+    emailHint:    'Schau in deine E-Mails für eine Kalendereinladung.',
+    locale:       'de-DE',
+  },
+  es: {
+    title:        'Reservar llamada de 60 minutos',
+    subtitle:     'con Nils Eckelt',
+    days:         ['Lu','Ma','Mi','Ju','Vi','Sá','Do'],
+    loading:      'Cargando horarios disponibles…',
+    noSlots:      'Sin horarios',
+    bookingWith:  'Reserva: ',
+    labelName:    'Tu nombre',
+    phName:       'María García',
+    labelEmail:   'Tu correo',
+    phEmail:      'maria@ejemplo.es',
+    labelNotes:   'Notas (opcional)',
+    phNotes:      '¿De qué te gustaría hablar?',
+    back:         '← Volver',
+    confirm:      'Confirmar reserva',
+    confirming:   'Confirmando…',
+    errName:      'Por favor introduce tu nombre.',
+    errEmail:     'Por favor introduce un correo válido.',
+    errTaken:     'Este horario acaba de ser ocupado. Elige otro por favor.',
+    errGeneric:   'Algo salió mal. Por favor inténtalo de nuevo.',
+    errNetwork:   'Error de red. Por favor inténtalo de nuevo.',
+    successTitle: '¡Reserva confirmada!',
+    joinCall:     'Unirse a la videollamada',
+    emailHint:    'Revisa tu correo para la invitación del calendario.',
+    locale:       'es-ES',
+  },
+};
+
+const langKey = (navigator.language || 'en').slice(0, 2).toLowerCase();
+const T = LANGS[langKey] || LANGS.en;
+
+// Apply static strings
+document.getElementById('page-title').textContent = T.title;
+document.getElementById('page-subtitle').textContent = T.subtitle;
+document.getElementById('label-name').textContent = T.labelName;
+document.getElementById('name').placeholder = T.phName;
+document.getElementById('label-email').textContent = T.labelEmail;
+document.getElementById('email').placeholder = T.phEmail;
+document.getElementById('label-notes').textContent = T.labelNotes;
+document.getElementById('notes').placeholder = T.phNotes;
+document.getElementById('back-btn').textContent = T.back;
+document.getElementById('confirm-btn').textContent = T.confirm;
+document.getElementById('booking-summary-prefix').textContent = T.bookingWith;
+document.getElementById('success-title').textContent = T.successTitle;
+document.getElementById('jitsi-link').textContent = T.joinCall;
+document.getElementById('success-email-hint').textContent = T.emailHint;
+document.getElementById('slots-loading').textContent = T.loading;
+document.title = T.title;
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const DURATION = 60;
+const API = '/api';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+let calYear  = today.getFullYear();
+let calMonth = today.getMonth();
+let anchorDate  = null;
+let selectedSlot = null;
+const slotCache = {};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function isoDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function dateFromIso(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addDays(d, n) {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function isWeekend(d) { const dow = d.getDay(); return dow === 0 || dow === 6; }
+function isPast(d) { return d < today; }
+
+function nextWorkday(d) {
+  let r = addDays(d, 1);
+  while (isWeekend(r)) r = addDays(r, 1);
+  return r;
+}
+
+function prevWorkday(d) {
+  let r = addDays(d, -1);
+  while (isWeekend(r) || isPast(r)) r = addDays(r, -1);
+  if (r < today) return null;
+  return r;
+}
+
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString(T.locale, {
+    timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString(T.locale, {
+    timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
+
+function colHeader(d) {
+  const dow = d.toLocaleDateString(T.locale, { weekday: 'short' });
+  return `${dow.charAt(0).toUpperCase() + dow.slice(1, 2)} ${d.getDate()}`;
+}
+
+// ── Step navigation ───────────────────────────────────────────────────────────
+function goToStep(id) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── Calendar rendering ────────────────────────────────────────────────────────
+function buildCal() {
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+
+  T.days.forEach(name => {
+    const h = document.createElement('div');
+    h.className = 'cal-dow';
+    h.textContent = name;
+    grid.appendChild(h);
+  });
+
+  document.getElementById('cal-month-label').textContent =
+    new Date(calYear, calMonth, 1).toLocaleDateString(T.locale, { month: 'long', year: 'numeric' });
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const rawDow = firstDay.getDay();
+  const offset = rawDow === 0 ? 6 : rawDow - 1; // Monday-first
+
+  for (let i = 0; i < offset; i++) {
+    const filler = document.createElement('div');
+    filler.className = 'cal-day other-month';
+    filler.textContent = new Date(calYear, calMonth, 1 - (offset - i)).getDate();
+    grid.appendChild(filler);
+  }
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(calYear, calMonth, day);
+    const cell = document.createElement('div');
+    cell.className = 'cal-day';
+
+    const isToday = d.getTime() === today.getTime();
+    const past = isPast(d);
+    const weekend = isWeekend(d);
+
+    if (isToday) cell.classList.add('today');
+    if (past && !isToday) cell.classList.add('past');
+
+    if (!past && !weekend) {
+      cell.classList.add('available');
+      if (anchorDate && isoDate(d) === isoDate(anchorDate)) {
+        cell.classList.add('selected');
+      }
+      cell.onclick = () => selectCalDay(d);
+    }
+
+    cell.textContent = day;
+    grid.appendChild(cell);
+  }
+
+  const totalCells = offset + daysInMonth;
+  const remainder = totalCells % 7;
+  if (remainder !== 0) {
+    for (let i = 1; i <= 7 - remainder; i++) {
+      const filler = document.createElement('div');
+      filler.className = 'cal-day other-month';
+      filler.textContent = i;
+      grid.appendChild(filler);
+    }
+  }
+
+  document.getElementById('cal-prev').disabled =
+    calYear === today.getFullYear() && calMonth === today.getMonth();
+}
+
+function shiftMonth(delta) {
+  calMonth += delta;
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0;  calYear++; }
+  buildCal();
+}
+
+// ── Select a calendar day ─────────────────────────────────────────────────────
+function selectCalDay(d) {
+  anchorDate = d;
+  buildCal();
+  showSlots();
+}
+
+// ── Slot column view ──────────────────────────────────────────────────────────
+function showSlots() {
+  document.getElementById('slots-section').classList.add('visible');
+  renderSlotColumns(anchorDate, nextWorkday(anchorDate));
+  updateSlotNavButtons();
+}
+
+function shiftDayPair(delta) {
+  if (!anchorDate) return;
+  if (delta > 0) {
+    anchorDate = nextWorkday(anchorDate);
+  } else {
+    const prev = prevWorkday(anchorDate);
+    if (prev) anchorDate = prev;
+  }
+  buildCal();
+  showSlots();
+}
+
+function updateSlotNavButtons() {
+  document.getElementById('slots-prev').disabled = !prevWorkday(anchorDate);
+  document.getElementById('slots-next').disabled = false;
+}
+
+async function renderSlotColumns(d1, d2) {
+  const container = document.getElementById('slots-columns');
+  container.innerHTML = `<div class="slots-loading">${T.loading}</div>`;
+
+  const iso1 = isoDate(d1);
+  const iso2 = isoDate(d2);
+  await Promise.all([fetchSlots(iso1), fetchSlots(iso2)]);
+
+  container.innerHTML = '';
+  [iso1, iso2].forEach(iso => {
+    const d = dateFromIso(iso);
+    const col = document.createElement('div');
+
+    const slots = slotCache[iso] || [];
+    const header = document.createElement('div');
+    header.className = 'slots-col-header' + (slots.length === 0 ? ' no-slots-header' : '');
+    header.textContent = colHeader(d);
+    col.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'slots-list';
+    if (slots.length === 0) {
+      const msg = document.createElement('div');
+      msg.className = 'no-slots-msg';
+      msg.textContent = T.noSlots;
+      list.appendChild(msg);
+    } else {
+      slots.forEach(slot => {
+        const btn = document.createElement('button');
+        btn.className = 'slot-btn';
+        if (selectedSlot && selectedSlot.start === slot.start) btn.classList.add('selected');
+        btn.textContent = formatTime(slot.start);
+        btn.onclick = () => pickSlot(slot, btn);
+        list.appendChild(btn);
+      });
+    }
+    col.appendChild(list);
+    container.appendChild(col);
+  });
+}
+
+async function fetchSlots(iso) {
+  if (slotCache[iso] !== undefined) return;
+  slotCache[iso] = null;
+  try {
+    const res = await fetch(`${API}/slots?duration=${DURATION}&from=${iso}&to=${iso}`);
+    const data = await res.json();
+    slotCache[iso] = data.slots || [];
+  } catch {
+    slotCache[iso] = [];
+  }
+}
+
+function pickSlot(slot, btn) {
+  selectedSlot = slot;
+  document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+
+  const label = `${formatDate(slot.start)} ${formatTime(slot.start)} – ${formatTime(slot.end)}`;
+  document.getElementById('booking-summary').textContent = label;
+  goToStep('step-form');
+}
+
+// ── Booking form ──────────────────────────────────────────────────────────────
+async function submitBooking() {
+  const name  = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const notes = document.getElementById('notes').value.trim();
+  const err   = document.getElementById('form-error');
+  err.textContent = '';
+
+  if (!name)  { err.textContent = T.errName; return; }
+  if (!email || !email.includes('@')) { err.textContent = T.errEmail; return; }
+
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled = true;
+  btn.textContent = T.confirming;
+
+  try {
+    const res = await fetch(`${API}/book`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start: selectedSlot.start, duration: DURATION, name, email, notes }),
+    });
+    const data = await res.json();
+
+    if (res.status === 409) {
+      err.textContent = T.errTaken;
+      btn.disabled = false; btn.textContent = T.confirm;
+      return;
+    }
+    if (!res.ok) {
+      err.textContent = data.error || T.errGeneric;
+      btn.disabled = false; btn.textContent = T.confirm;
+      return;
+    }
+
+    document.getElementById('success-details').textContent =
+      `${formatDate(selectedSlot.start)} ${formatTime(selectedSlot.start)} – ${formatTime(selectedSlot.end)}`;
+    document.getElementById('jitsi-link').href = data.jitsiUrl;
+    goToStep('step-success');
+  } catch {
+    err.textContent = T.errNetwork;
+    btn.disabled = false; btn.textContent = T.confirm;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildCal();
+</script>
 </body>
 </html>
