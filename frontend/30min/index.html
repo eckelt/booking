@@ -77,14 +77,12 @@
     .slot-change-link { display: none; text-align: center; padding: 0.15rem 0 0.1rem; }
     .slot-change-link button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.78rem; font-family: inherit; text-decoration: underline; text-underline-offset: 2px; padding: 0; }
     .slot-change-link button:hover { color: var(--primary); }
-    @media (max-width: 639px) {
-      .slot-collapsed .slots-nav-arrow { opacity: 0; max-width: 0; padding-left: 0; padding-right: 0; border-width: 0; }
-      .slot-collapsed .slots-day-grid:has(.slots-day-col:first-child .slot-btn.selected) { grid-template-columns: 1fr 0fr; }
-      .slot-collapsed .slots-day-grid:has(.slots-day-col:last-child .slot-btn.selected) { grid-template-columns: 0fr 1fr; }
-      .slot-collapsed .slot-btn:not(.selected) { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
-      .slot-collapsed .slots-col-list { gap: 0; }
-      .slot-collapsed .slot-change-link { display: block; }
-    }
+    .slot-collapsed .slots-nav-arrow { opacity: 0; max-width: 0; padding-left: 0; padding-right: 0; border-width: 0; }
+    .slot-collapsed .slots-day-grid:has(.slots-day-col:first-child .slot-btn.selected) { grid-template-columns: 1fr 0fr; }
+    .slot-collapsed .slots-day-grid:has(.slots-day-col:last-child .slot-btn.selected) { grid-template-columns: 0fr 1fr; }
+    .slot-collapsed .slot-btn:not(.selected) { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
+    .slot-collapsed .slots-col-list { gap: 0; }
+    .slot-collapsed .slot-change-link { display: block; }
     .privacy-note { font-size: 0.75rem; color: var(--muted); text-align: center; margin-top: 0.5rem; }
     .privacy-note a { color: var(--muted); }
   </style>
@@ -281,8 +279,7 @@
       renderCalendar(); renderSlotsPanel();
     }
 
-    function collapseForMobile(slot) {
-      if (window.innerWidth >= 640) return;
+    function collapseSlots(slot) {
       const panel = document.getElementById('slotsPanel');
       panel.classList.add('slot-collapsed');
       const existing = document.getElementById('slotChangeLink');
@@ -314,7 +311,7 @@
           <button type="submit" class="btn-confirm" id="btnOk">${T.confirm}</button>
           <p class="privacy-note">${T.privacyNote}</p>
         </form>`;
-      collapseForMobile(slot);
+      collapseSlots(slot);
       document.getElementById('bForm').addEventListener('submit', async e=>{
         e.preventDefault();
         const name=document.getElementById('fName').value.trim();
