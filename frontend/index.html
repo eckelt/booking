@@ -1,72 +1,168 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Book time with Nils Eckelt</title>
-  <style>
-    :root {
-      --bg: #fdf9f3; --surface: #fff; --text: #2c292d; --muted: #736e73;
-      --border: #e8e2dc; --primary: #006e8a; --primary-hover: #005570;
-      --on-primary: #fff; --danger: #b01040;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #19181a; --surface: #2d2a2e; --text: #fcfcfa; --muted: #848085;
-        --border: #403e41; --primary: #78dce8; --primary-hover: #60cfe2;
-        --on-primary: #19181a; --danger: #ff6188;
-      }
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
-    .container { max-width: 480px; width: 100%; text-align: center; }
-    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.4rem; }
-    .sub { color: var(--muted); margin-bottom: 2.5rem; font-size: 0.95rem; }
-    .cards { display: flex; flex-direction: column; gap: 1rem; }
-    .card {
-      display: block; text-decoration: none;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 1rem;
-      padding: 1.5rem; text-align: left; transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .card:hover { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent); }
-    .card-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--text); }
-    .card-desc { font-size: 0.875rem; color: var(--muted); }
-    .card-arrow { float: right; color: var(--primary); font-size: 1.2rem; }
-  </style>
-</head>
-<body>
-<div class="container">
-  <h1 id="pageTitle">Book time with Nils Eckelt</h1>
-  <p class="sub" id="pageSub">Choose a duration</p>
-  <div class="cards">
-    <a class="card" href="/30min/">
-      <span class="card-arrow">&#8250;</span>
-      <div class="card-title" id="card30title">30-minute call</div>
-      <div class="card-desc" id="card30desc">A focused conversation</div>
-    </a>
-    <a class="card" href="/60min/">
-      <span class="card-arrow">&#8250;</span>
-      <div class="card-title" id="card60title">60-minute call</div>
-      <div class="card-desc" id="card60desc">A deeper discussion</div>
-    </a>
-  </div>
-</div>
-<script>
-  const L = {
-    en: { title:'Book time with Nils Eckelt', sub:'Choose a duration', t30:'30-minute call', d30:'A focused conversation', t60:'60-minute call', d60:'A deeper discussion' },
-    de: { title:'Zeit buchen mit Nils Eckelt', sub:'Dauer wählen', t30:'30-Minuten-Gespräch', d30:'Ein fokussiertes Gespräch', t60:'60-Minuten-Gespräch', d60:'Eine ausführlichere Unterhaltung' },
-    es: { title:'Reservar tiempo con Nils Eckelt', sub:'Elige la duración', t30:'Llamada de 30 minutos', d30:'Una conversación enfocada', t60:'Llamada de 60 minutos', d60:'Una discusión más profunda' },
-  };
-  const lang = navigator.language?.slice(0,2).toLowerCase();
-  const T = L[lang] || L.en;
-  document.documentElement.lang = L[lang] ? lang : 'en';
-  document.title = T.title;
-  document.getElementById('pageTitle').textContent = T.title;
-  document.getElementById('pageSub').textContent = T.sub;
-  document.getElementById('card30title').textContent = T.t30;
-  document.getElementById('card30desc').textContent = T.d30;
-  document.getElementById('card60title').textContent = T.t60;
-  document.getElementById('card60desc').textContent = T.d60;
-</script>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Book time with Nils Eckelt</title>
+        <style>
+            :root {
+                --bg: #fafaf9;
+                --surface: #fff;
+                --text: #2c292d;
+                --muted: #736e73;
+                --border: #e5e5e5;
+                --primary: #006e8a;
+                --primary-hover: #005570;
+                --on-primary: #fff;
+                --danger: #b01040;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #19181a;
+                    --surface: #2d2a2e;
+                    --text: #fcfcfa;
+                    --muted: #848085;
+                    --border: #403e41;
+                    --primary: #78dce8;
+                    --primary-hover: #60cfe2;
+                    --on-primary: #19181a;
+                    --danger: #ff6188;
+                }
+            }
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem 1rem;
+            }
+            .container {
+                max-width: 480px;
+                width: 100%;
+                text-align: center;
+            }
+            h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+                margin-bottom: 0.4rem;
+            }
+            .sub {
+                color: var(--muted);
+                margin-bottom: 2.5rem;
+                font-size: 0.95rem;
+            }
+            .cards {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .card {
+                display: block;
+                text-decoration: none;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                text-align: left;
+                transition:
+                    border-color 0.15s,
+                    box-shadow 0.15s;
+            }
+            .card:hover {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px
+                    color-mix(in srgb, var(--primary) 20%, transparent);
+            }
+            .card-title {
+                font-size: 1.05rem;
+                font-weight: 600;
+                margin-bottom: 0.25rem;
+                color: var(--text);
+            }
+            .card-desc {
+                font-size: 0.875rem;
+                color: var(--muted);
+            }
+            .card-arrow {
+                float: right;
+                color: var(--primary);
+                font-size: 1.2rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1 id="pageTitle">Book time with Nils Eckelt</h1>
+            <p class="sub" id="pageSub">Choose a duration</p>
+            <div class="cards">
+                <a class="card" href="/30min/">
+                    <span class="card-arrow">&#8250;</span>
+                    <div class="card-title" id="card30title">
+                        30-minute call
+                    </div>
+                    <div class="card-desc" id="card30desc">
+                        A focused conversation
+                    </div>
+                </a>
+                <a class="card" href="/60min/">
+                    <span class="card-arrow">&#8250;</span>
+                    <div class="card-title" id="card60title">
+                        60-minute call
+                    </div>
+                    <div class="card-desc" id="card60desc">
+                        A deeper discussion
+                    </div>
+                </a>
+            </div>
+        </div>
+        <script>
+            const L = {
+                en: {
+                    title: "Book time with Nils Eckelt",
+                    sub: "Choose a duration",
+                    t30: "30-minute call",
+                    d30: "A focused conversation",
+                    t60: "60-minute call",
+                    d60: "A deeper discussion",
+                },
+                de: {
+                    title: "Zeit buchen mit Nils Eckelt",
+                    sub: "Dauer wählen",
+                    t30: "30-Minuten-Gespräch",
+                    d30: "Ein fokussiertes Gespräch",
+                    t60: "60-Minuten-Gespräch",
+                    d60: "Eine ausführlichere Unterhaltung",
+                },
+                es: {
+                    title: "Reservar tiempo con Nils Eckelt",
+                    sub: "Elige la duración",
+                    t30: "Llamada de 30 minutos",
+                    d30: "Una conversación enfocada",
+                    t60: "Llamada de 60 minutos",
+                    d60: "Una discusión más profunda",
+                },
+            };
+            const lang = navigator.language?.slice(0, 2).toLowerCase();
+            const T = L[lang] || L.en;
+            document.documentElement.lang = L[lang] ? lang : "en";
+            document.title = T.title;
+            document.getElementById("pageTitle").textContent = T.title;
+            document.getElementById("pageSub").textContent = T.sub;
+            document.getElementById("card30title").textContent = T.t30;
+            document.getElementById("card30desc").textContent = T.d30;
+            document.getElementById("card60title").textContent = T.t60;
+            document.getElementById("card60desc").textContent = T.d60;
+        </script>
+    </body>
 </html>
