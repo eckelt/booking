@@ -77,7 +77,10 @@ export async function createBooking(
   if (!slotAvailable) throw new SlotUnavailableError();
 
   const uid = generateUid();
-  const jitsiUrl = generateJitsiUrl(uid);
+  const jitsiUrl = await generateJitsiUrl(
+    uid, start, end,
+    env.JAAS_APP_ID, env.JAAS_KEY_ID, env.JAAS_PRIVATE_KEY
+  );
 
   const ical = buildIcal({
     uid,

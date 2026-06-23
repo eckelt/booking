@@ -7,6 +7,9 @@ export interface Env {
   OWNER_EMAIL: string;
   SMTP_USERNAME: string;
   SMTP_PASSWORD: string;
+  JAAS_APP_ID: string;
+  JAAS_KEY_ID: string;
+  JAAS_PRIVATE_KEY: string;
   RATE_LIMIT: KVNamespace;
 }
 
