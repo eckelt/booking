@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -62,6 +62,22 @@
             header h1 {
                 font-size: 1.1rem;
                 font-weight: 600;
+            }
+            .skip-link {
+                position: absolute;
+                left: 0.5rem;
+                top: -3rem;
+                z-index: 300;
+                background: var(--primary);
+                color: var(--on-primary);
+                padding: 0.5rem 1rem;
+                border-radius: 0.4rem;
+                text-decoration: none;
+                font-size: 0.85rem;
+                transition: top 0.15s;
+            }
+            .skip-link:focus {
+                top: 0.5rem;
             }
             .lang-switch {
                 margin-left: auto;
@@ -197,6 +213,10 @@
             }
             .cal-cell.today {
                 font-weight: 700;
+            }
+            .cal-cell.bookable:focus-visible {
+                outline: 2px solid var(--primary);
+                outline-offset: 1px;
             }
             .slots-nav {
                 display: flex;
@@ -481,24 +501,25 @@
         </style>
     </head>
     <body>
+        <a class="skip-link" href="#mainContent" id="skipLink">Skip to content</a>
         <header>
             <a href="https://nils.ecke.lt/" id="backLink">&larr; Back</a>
             <h1 id="pageTitle">Book a call</h1>
-            <div class="lang-switch">
-                <button class="lang-btn" id="btnDE" onclick="setLang('de')">DE</button>
-                <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+            <div class="lang-switch" role="group" aria-label="Language">
+                <button class="lang-btn" id="btnDE" lang="de" aria-pressed="false" aria-label="Deutsch" onclick="setLang('de')">DE</button>
+                <button class="lang-btn" id="btnEN" lang="en" aria-pressed="false" aria-label="English" onclick="setLang('en')">EN</button>
             </div>
         </header>
-        <div class="layout">
+        <div class="layout" id="mainContent">
             <div class="panel calendar-panel">
                 <div class="cal-header">
-                    <button class="cal-nav" id="prevMonth">&#8249;</button>
+                    <button class="cal-nav" id="prevMonth" aria-label="Previous month">&#8249;</button>
                     <span class="cal-title" id="calTitle"></span>
-                    <button class="cal-nav" id="nextMonth">&#8250;</button>
+                    <button class="cal-nav" id="nextMonth" aria-label="Next month">&#8250;</button>
                 </div>
                 <div class="cal-grid" id="calGrid"></div>
             </div>
-            <div class="panel slots-panel" id="slotsPanel">
+            <div class="panel slots-panel" id="slotsPanel" aria-live="polite" aria-atomic="false">
                 <p class="placeholder-text" id="placeholderText">
                     Select a day to see available slots.
                 </p>
@@ -513,6 +534,7 @@
                 en: {
                     title: `Book a ${DURATION}-minute call`,
                     back: "← Back",
+                    skip: "Skip to content",
                     placeholder: "Select a day to see available slots.",
                     loading: "Loading…",
                     error: "Error",
@@ -539,10 +561,15 @@
                     locale: "en-GB",
                     impressum: "Legal Notice",
                     datenschutz: "Privacy Policy",
+                    prevMonth: "Previous month",
+                    nextMonth: "Next month",
+                    prevDays: "Earlier",
+                    nextDays: "Later",
                 },
                 de: {
                     title: `${DURATION}-Minuten-Gespräch buchen`,
                     back: "← Zurück",
+                    skip: "Zum Inhalt springen",
                     placeholder:
                         "Wähle einen Tag, um verfügbare Zeiten zu sehen.",
                     loading: "Lädt…",
@@ -571,10 +598,15 @@
                     locale: "de-DE",
                     impressum: "Impressum",
                     datenschutz: "Datenschutz",
+                    prevMonth: "Vorheriger Monat",
+                    nextMonth: "Nächster Monat",
+                    prevDays: "Früher",
+                    nextDays: "Später",
                 },
                 es: {
                     title: `Reservar llamada de ${DURATION} minutos`,
                     back: "← Volver",
+                    skip: "Saltar al contenido",
                     placeholder:
                         "Selecciona un día para ver los horarios disponibles.",
                     loading: "Cargando…",
@@ -602,6 +634,10 @@
                     locale: "es-ES",
                     impressum: "Aviso legal",
                     datenschutz: "Privacidad",
+                    prevMonth: "Mes anterior",
+                    nextMonth: "Mes siguiente",
+                    prevDays: "Antes",
+                    nextDays: "Después",
                 },
             };
 
@@ -614,10 +650,16 @@
                 document.title = T.title;
                 document.getElementById("pageTitle").textContent = T.title;
                 document.getElementById("backLink").textContent = T.back;
+                const sk = document.getElementById("skipLink");
+                if (sk) sk.textContent = T.skip;
                 const ph = document.getElementById("placeholderText");
                 if (ph) ph.textContent = T.placeholder;
                 document.getElementById("btnDE").classList.toggle("active", activeLang === "de");
                 document.getElementById("btnEN").classList.toggle("active", activeLang !== "de");
+                document.getElementById("btnDE").setAttribute("aria-pressed", String(activeLang === "de"));
+                document.getElementById("btnEN").setAttribute("aria-pressed", String(activeLang !== "de"));
+                document.getElementById("prevMonth").setAttribute("aria-label", T.prevMonth);
+                document.getElementById("nextMonth").setAttribute("aria-label", T.nextMonth);
                 const imp = document.getElementById("footerImpressum");
                 if (imp) imp.textContent = T.impressum;
                 const ds = document.getElementById("footerDatenschutz");
@@ -707,6 +749,7 @@
                     const e = document.createElement("div");
                     e.className = "cal-day-label";
                     e.textContent = l;
+                    e.setAttribute("aria-hidden", "true");
                     grid.appendChild(e);
                 });
                 const firstDay = new Date(viewYear, viewMonth, 1);
@@ -715,6 +758,7 @@
                 for (let i = 0; i < offset; i++) {
                     const e = document.createElement("div");
                     e.className = "cal-cell empty";
+                    e.setAttribute("aria-hidden", "true");
                     grid.appendChild(e);
                 }
                 for (let d = 1; d <= days; d++) {
@@ -725,11 +769,23 @@
                     if (isSameDay(date, today)) el.classList.add("today");
                     if (pairLeft && isSameDay(date, pairLeft)) {
                         el.classList.add("selected");
+                        el.setAttribute("role", "button");
+                        el.setAttribute("tabindex", "0");
+                        el.setAttribute("aria-pressed", "true");
+                        el.setAttribute("aria-label", date.toLocaleDateString(T.locale, { weekday: "long", day: "numeric", month: "long" }));
                     } else if (isBookable(date)) {
                         el.classList.add("bookable");
+                        el.setAttribute("role", "button");
+                        el.setAttribute("tabindex", "0");
+                        el.setAttribute("aria-pressed", "false");
+                        el.setAttribute("aria-label", date.toLocaleDateString(T.locale, { weekday: "long", day: "numeric", month: "long" }));
                         el.addEventListener("click", () => selectDay(date));
+                        el.addEventListener("keydown", (ev) => {
+                            if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectDay(date); }
+                        });
                     } else {
                         el.classList.add("disabled");
+                        el.setAttribute("aria-hidden", "true");
                     }
                     grid.appendChild(el);
                 }
@@ -802,12 +858,12 @@
                     : isSameDay(pairLeft, last);
                 panel.innerHTML = `
         <div class="slots-nav">
-          <button class="slots-nav-arrow" id="slotPrev" ${prevDis ? "disabled" : ""}>&#8249;</button>
+          <button class="slots-nav-arrow" id="slotPrev" ${prevDis ? "disabled" : ""} aria-label="${T.prevDays}">&#8249;</button>
           <div class="slots-day-grid">
             <div class="slots-day-col">${dayColHeader(pairLeft)}<div class="slots-col-list" id="slotListL"><div class="slots-loading">${T.loading}</div></div></div>
             <div class="slots-day-col">${pairRight ? dayColHeader(pairRight) : ""}<div class="slots-col-list" id="slotListR">${pairRight ? `<div class="slots-loading">${T.loading}</div>` : ""}</div></div>
           </div>
-          <button class="slots-nav-arrow" id="slotNext" ${nextDis ? "disabled" : ""}>&#8250;</button>
+          <button class="slots-nav-arrow" id="slotNext" ${nextDis ? "disabled" : ""} aria-label="${T.nextDays}">&#8250;</button>
         </div>
         <div id="formContainer"></div>`;
                 document
@@ -838,15 +894,16 @@
                 el.innerHTML = slots
                     .map(
                         (s) =>
-                            `<button class="slot-btn" data-start="${s.start}" data-end="${s.end}">${formatSlotTime(s.start)}</button>`,
+                            `<button class="slot-btn" data-start="${s.start}" data-end="${s.end}" aria-pressed="false">${formatSlotTime(s.start)}</button>`,
                     )
                     .join("");
                 el.querySelectorAll(".slot-btn").forEach((btn) =>
                     btn.addEventListener("click", () => {
                         document
                             .querySelectorAll(".slot-btn")
-                            .forEach((b) => b.classList.remove("selected"));
+                            .forEach((b) => { b.classList.remove("selected"); b.setAttribute("aria-pressed", "false"); });
                         btn.classList.add("selected");
+                        btn.setAttribute("aria-pressed", "true");
                         selectedSlot = {
                             start: btn.dataset.start,
                             end: btn.dataset.end,
@@ -910,7 +967,7 @@
           <div class="form-group"><label for="fName">${T.labelName}</label><input type="text" id="fName" placeholder="${T.phName}" value="${preName.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group"><label for="fEmail">${T.labelEmail}</label><input type="email" id="fEmail" placeholder="${T.phEmail}" value="${preEmail.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group"><label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label><textarea id="fNotes" placeholder="${T.phNotes}"></textarea></div>
-          <div id="fErr" class="form-error" style="display:none"></div>
+          <div id="fErr" class="form-error" role="alert" style="display:none"></div>
           <button type="submit" class="btn-confirm" id="btnOk">${T.confirm}</button>
           <p class="privacy-note">${T.privacyNote}</p>
         </form>`;
@@ -981,7 +1038,7 @@
                                     timeZone: TZ,
                                 },
                             );
-                            panel.innerHTML = `<div class="success-box"><div class="success-icon">&#x2705;</div><h2>${T.successTitle}</h2><p>${dayFmt} &ndash; ${fmt(slot.end)}</p><p>${T.successEmail}</p>${data.jitsiUrl ? `<a class="jitsi-link" href="${data.jitsiUrl}" target="_blank" rel="noopener">${data.jitsiUrl}</a>` : ""}</div>`;
+                            panel.innerHTML = `<div class="success-box"><div class="success-icon" aria-hidden="true">&#x2705;</div><h2>${T.successTitle}</h2><p>${dayFmt} &ndash; ${fmt(slot.end)}</p><p>${T.successEmail}</p>${data.jitsiUrl ? `<a class="jitsi-link" href="${data.jitsiUrl}" target="_blank" rel="noopener">${data.jitsiUrl}</a>` : ""}</div>`;
                         } catch (ex) {
                             btn.disabled = false;
                             btn.textContent = T.confirm;
