@@ -2,7 +2,7 @@ import type { BookingRequest, BookingResult, Env, Interval } from "./types.js";
 import { SlotUnavailableError } from "./types.js";
 import { fetchBusy, putEvent, deleteEvent, buildIcal } from "./caldav.js";
 import { sendEmails } from "./email.js";
-import { generateUid, generateJitsiUrl } from "./jitsi.js";
+import { generateUid } from "./jitsi.js";
 import { computeSlots, workingDayWindow } from "./availability.js";
 
 const MAX_DAYS = 14;
@@ -77,10 +77,7 @@ export async function createBooking(
   if (!slotAvailable) throw new SlotUnavailableError();
 
   const uid = generateUid();
-  const jitsiUrl = await generateJitsiUrl(
-    uid, start, end,
-    env.JAAS_APP_ID, env.JAAS_KEY_ID, env.JAAS_PRIVATE_KEY
-  );
+  const jitsiUrl = `https://book.ecke.lt/api/join?uid=${uid}`;
 
   const ical = buildIcal({
     uid,

@@ -3,6 +3,7 @@ import { SlotUnavailableError } from "./types.js";
 import { fetchBusy, deleteEvent } from "./caldav.js";
 import { workingDayWindow, computeSlots } from "./availability.js";
 import { validateBookingRequest, createBooking } from "./booking.js";
+import { generateJitsiUrl } from "./jitsi.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "https://book.ecke.lt",
@@ -28,6 +29,9 @@ export default {
       if (url.pathname === "/api/cancel" && request.method === "GET") {
         return await handleCancel(url, request, env);
       }
+      if (url.pathname === "/api/join" && request.method === "GET") {
+        return await handleJoin(url, env);
+      }
       return json({ error: "not found" }, 404);
     } catch (err) {
       console.error(err);
@@ -51,6 +55,20 @@ async function checkRateLimit(
   if (count >= limit) return false;
   await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: windowSecs * 2 });
   return true;
+}
+
+async function handleJoin(url: URL, env: Env): Promise<Response> {
+  const uid = url.searchParams.get("uid")?.trim();
+  if (!uid || !/^booking-[\w-]+$/.test(uid)) {
+    return html("<h2>Invalid meeting link.</h2>", 400);
+  }
+  const now = new Date();
+  const expires = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const jaasUrl = await generateJitsiUrl(
+    uid, now, expires,
+    env.JAAS_APP_ID, env.JAAS_KEY_ID, env.JAAS_PRIVATE_KEY
+  );
+  return Response.redirect(jaasUrl, 302);
 }
 
 async function handleSlots(url: URL, env: Env): Promise<Response> {
