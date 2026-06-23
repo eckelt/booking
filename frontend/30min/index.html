@@ -482,7 +482,7 @@
     </head>
     <body>
         <header>
-            <a href="/" id="backLink">&larr; Back</a>
+            <a href="/" id="backLink" onclick="if(history.length>1){event.preventDefault();history.back();}}">&larr; Back</a>
             <h1 id="pageTitle">Book a call</h1>
             <div class="lang-switch">
                 <button class="lang-btn" id="btnDE" onclick="setLang('de')">DE</button>
