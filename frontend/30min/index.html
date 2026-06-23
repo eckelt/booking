@@ -198,6 +198,10 @@
             .cal-cell.today {
                 font-weight: 700;
             }
+            .cal-cell.bookable:focus-visible {
+                outline: 2px solid var(--primary);
+                outline-offset: 1px;
+            }
             .slots-nav {
                 display: flex;
                 align-items: flex-start;
@@ -482,7 +486,7 @@
     </head>
     <body>
         <header>
-            <a href="/" id="backLink">&larr; Back</a>
+            <a href="https://nils.ecke.lt/" id="backLink">&larr; Back</a>
             <h1 id="pageTitle">Book a call</h1>
             <div class="lang-switch">
                 <button class="lang-btn" id="btnDE" onclick="setLang('de')">DE</button>
@@ -492,13 +496,13 @@
         <div class="layout">
             <div class="panel calendar-panel">
                 <div class="cal-header">
-                    <button class="cal-nav" id="prevMonth">&#8249;</button>
+                    <button class="cal-nav" id="prevMonth" aria-label="Previous month">&#8249;</button>
                     <span class="cal-title" id="calTitle"></span>
-                    <button class="cal-nav" id="nextMonth">&#8250;</button>
+                    <button class="cal-nav" id="nextMonth" aria-label="Next month">&#8250;</button>
                 </div>
                 <div class="cal-grid" id="calGrid"></div>
             </div>
-            <div class="panel slots-panel" id="slotsPanel">
+            <div class="panel slots-panel" id="slotsPanel" aria-live="polite" aria-atomic="false">
                 <p class="placeholder-text" id="placeholderText">
                     Select a day to see available slots.
                 </p>
@@ -537,6 +541,12 @@
                     days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
                     wday: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
                     locale: "en-GB",
+                    impressum: "Legal Notice",
+                    datenschutz: "Privacy Policy",
+                    prevMonth: "Previous month",
+                    nextMonth: "Next month",
+                    prevDays: "Earlier",
+                    nextDays: "Later",
                 },
                 de: {
                     title: `${DURATION}-Minuten-Gespräch buchen`,
@@ -567,6 +577,12 @@
                     days: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
                     wday: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
                     locale: "de-DE",
+                    impressum: "Impressum",
+                    datenschutz: "Datenschutz",
+                    prevMonth: "Vorheriger Monat",
+                    nextMonth: "Nächster Monat",
+                    prevDays: "Früher",
+                    nextDays: "Später",
                 },
                 es: {
                     title: `Reservar llamada de ${DURATION} minutos`,
@@ -596,6 +612,12 @@
                     days: ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"],
                     wday: ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sá"],
                     locale: "es-ES",
+                    impressum: "Aviso legal",
+                    datenschutz: "Privacidad",
+                    prevMonth: "Mes anterior",
+                    nextMonth: "Mes siguiente",
+                    prevDays: "Antes",
+                    nextDays: "Después",
                 },
             };
 
@@ -612,6 +634,12 @@
                 if (ph) ph.textContent = T.placeholder;
                 document.getElementById("btnDE").classList.toggle("active", activeLang === "de");
                 document.getElementById("btnEN").classList.toggle("active", activeLang !== "de");
+                document.getElementById("prevMonth").setAttribute("aria-label", T.prevMonth);
+                document.getElementById("nextMonth").setAttribute("aria-label", T.nextMonth);
+                const imp = document.getElementById("footerImpressum");
+                if (imp) imp.textContent = T.impressum;
+                const ds = document.getElementById("footerDatenschutz");
+                if (ds) ds.textContent = T.datenschutz;
                 renderCalendar();
                 if (pairLeft) renderSlotsPanel();
             };
@@ -697,6 +725,7 @@
                     const e = document.createElement("div");
                     e.className = "cal-day-label";
                     e.textContent = l;
+                    e.setAttribute("aria-hidden", "true");
                     grid.appendChild(e);
                 });
                 const firstDay = new Date(viewYear, viewMonth, 1);
@@ -705,6 +734,7 @@
                 for (let i = 0; i < offset; i++) {
                     const e = document.createElement("div");
                     e.className = "cal-cell empty";
+                    e.setAttribute("aria-hidden", "true");
                     grid.appendChild(e);
                 }
                 for (let d = 1; d <= days; d++) {
@@ -715,11 +745,23 @@
                     if (isSameDay(date, today)) el.classList.add("today");
                     if (pairLeft && isSameDay(date, pairLeft)) {
                         el.classList.add("selected");
+                        el.setAttribute("role", "button");
+                        el.setAttribute("tabindex", "0");
+                        el.setAttribute("aria-pressed", "true");
+                        el.setAttribute("aria-label", date.toLocaleDateString(T.locale, { weekday: "long", day: "numeric", month: "long" }));
                     } else if (isBookable(date)) {
                         el.classList.add("bookable");
+                        el.setAttribute("role", "button");
+                        el.setAttribute("tabindex", "0");
+                        el.setAttribute("aria-pressed", "false");
+                        el.setAttribute("aria-label", date.toLocaleDateString(T.locale, { weekday: "long", day: "numeric", month: "long" }));
                         el.addEventListener("click", () => selectDay(date));
+                        el.addEventListener("keydown", (ev) => {
+                            if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectDay(date); }
+                        });
                     } else {
                         el.classList.add("disabled");
+                        el.setAttribute("aria-hidden", "true");
                     }
                     grid.appendChild(el);
                 }
@@ -761,6 +803,18 @@
                 return slotCache[iso];
             }
 
+            function prefetchInitialSlots() {
+                const d = new Date(today);
+                let count = 0;
+                while (count < 4) {
+                    d.setDate(d.getDate() + 1);
+                    if (isBookable(d)) {
+                        fetchSlots(new Date(d));
+                        count++;
+                    }
+                }
+            }
+
             function dayColHeader(date) {
                 return `<div class="slots-day-header"><div class="slots-day-weekday">${T.wday[date.getDay()]}</div><div class="slots-day-num">${date.getDate()}</div></div>`;
             }
@@ -780,12 +834,12 @@
                     : isSameDay(pairLeft, last);
                 panel.innerHTML = `
         <div class="slots-nav">
-          <button class="slots-nav-arrow" id="slotPrev" ${prevDis ? "disabled" : ""}>&#8249;</button>
+          <button class="slots-nav-arrow" id="slotPrev" ${prevDis ? "disabled" : ""} aria-label="${T.prevDays}">&#8249;</button>
           <div class="slots-day-grid">
             <div class="slots-day-col">${dayColHeader(pairLeft)}<div class="slots-col-list" id="slotListL"><div class="slots-loading">${T.loading}</div></div></div>
             <div class="slots-day-col">${pairRight ? dayColHeader(pairRight) : ""}<div class="slots-col-list" id="slotListR">${pairRight ? `<div class="slots-loading">${T.loading}</div>` : ""}</div></div>
           </div>
-          <button class="slots-nav-arrow" id="slotNext" ${nextDis ? "disabled" : ""}>&#8250;</button>
+          <button class="slots-nav-arrow" id="slotNext" ${nextDis ? "disabled" : ""} aria-label="${T.nextDays}">&#8250;</button>
         </div>
         <div id="formContainer"></div>`;
                 document
@@ -816,15 +870,16 @@
                 el.innerHTML = slots
                     .map(
                         (s) =>
-                            `<button class="slot-btn" data-start="${s.start}" data-end="${s.end}">${formatSlotTime(s.start)}</button>`,
+                            `<button class="slot-btn" data-start="${s.start}" data-end="${s.end}" aria-pressed="false">${formatSlotTime(s.start)}</button>`,
                     )
                     .join("");
                 el.querySelectorAll(".slot-btn").forEach((btn) =>
                     btn.addEventListener("click", () => {
                         document
                             .querySelectorAll(".slot-btn")
-                            .forEach((b) => b.classList.remove("selected"));
+                            .forEach((b) => { b.classList.remove("selected"); b.setAttribute("aria-pressed", "false"); });
                         btn.classList.add("selected");
+                        btn.setAttribute("aria-pressed", "true");
                         selectedSlot = {
                             start: btn.dataset.start,
                             end: btn.dataset.end,
@@ -993,6 +1048,7 @@
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
             applyLang(_sl || (LANGS[_al] ? _al : "en"));
+            prefetchInitialSlots();
         </script>
         <footer
             style="
@@ -1007,11 +1063,13 @@
             <a
                 href="https://nils.ecke.lt/impressum/"
                 style="color: var(--muted); text-decoration: none"
+                id="footerImpressum"
                 >Impressum</a
             >
             <a
                 href="https://nils.ecke.lt/datenschutz/"
                 style="color: var(--muted); text-decoration: none"
+                id="footerDatenschutz"
                 >Datenschutz</a
             >
         </footer>
