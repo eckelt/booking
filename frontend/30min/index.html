@@ -771,6 +771,18 @@
                 return slotCache[iso];
             }
 
+            function prefetchInitialSlots() {
+                const d = new Date(today);
+                let count = 0;
+                while (count < 4) {
+                    d.setDate(d.getDate() + 1);
+                    if (isBookable(d)) {
+                        fetchSlots(new Date(d));
+                        count++;
+                    }
+                }
+            }
+
             function dayColHeader(date) {
                 return `<div class="slots-day-header"><div class="slots-day-weekday">${T.wday[date.getDay()]}</div><div class="slots-day-num">${date.getDate()}</div></div>`;
             }
@@ -1003,6 +1015,7 @@
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
             applyLang(_sl || (LANGS[_al] ? _al : "en"));
+            prefetchInitialSlots();
         </script>
         <footer
             style="
