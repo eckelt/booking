@@ -10,7 +10,7 @@ export interface Env {
   JAAS_APP_ID: string;
   JAAS_KEY_ID: string;
   JAAS_PRIVATE_KEY: string;
-  RATE_LIMIT: KVNamespace;
+  RATE_LIMIT?: KVNamespace;
 }
 
 export class SlotUnavailableError extends Error {}

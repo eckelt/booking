@@ -12,10 +12,8 @@ CALDAV_CALENDAR_OHANA = "0C692FAB-66C9-454F-B51D-D076560588DB"
 JAAS_APP_ID = "vpaas-magic-cookie-844afece898c44fe995febd212d45364"
 JAAS_KEY_ID = "98c2cb"
 # JAAS_PRIVATE_KEY: stored as Cloudflare Worker secret
-
-[[kv_namespaces]]
-binding = "RATE_LIMIT"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+# To re-enable rate limiting: run `wrangler kv namespace create RATE_LIMIT`,
+# then add: [[kv_namespaces]] / binding = "RATE_LIMIT" / id = "<id from above>"
 
 [[routes]]
 pattern = "book.ecke.lt/api/*"
