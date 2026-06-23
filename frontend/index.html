@@ -99,6 +99,41 @@
                 color: var(--primary);
                 font-size: 1.2rem;
             }
+            .lang-switch {
+                display: flex;
+                justify-content: center;
+                margin-top: 2.5rem;
+            }
+            .lang-pill {
+                display: inline-flex;
+                border: 1px solid var(--border);
+                border-radius: 999px;
+                overflow: hidden;
+            }
+            .lang-btn {
+                background: none;
+                border: none;
+                color: var(--muted);
+                cursor: pointer;
+                padding: 0.3rem 0.7rem;
+                font-family: inherit;
+                font-size: 0.7rem;
+                font-weight: 500;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                line-height: 1;
+                transition: background 0.15s, color 0.15s;
+            }
+            .lang-btn + .lang-btn {
+                border-left: 1px solid var(--border);
+            }
+            .lang-btn.active {
+                background: var(--primary);
+                color: var(--on-primary);
+            }
+            .lang-btn:not(.active):hover {
+                color: var(--primary);
+            }
         </style>
     </head>
     <body>
@@ -124,6 +159,12 @@
                         A deeper discussion
                     </div>
                 </a>
+            </div>
+            <div class="lang-switch">
+                <div class="lang-pill">
+                    <button class="lang-btn" id="btnDE" onclick="setLang('de')">DE</button>
+                    <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+                </div>
             </div>
         </div>
         <script>
@@ -153,16 +194,30 @@
                     d60: "Una discusión más profunda",
                 },
             };
-            const lang = navigator.language?.slice(0, 2).toLowerCase();
-            const T = L[lang] || L.en;
-            document.documentElement.lang = L[lang] ? lang : "en";
-            document.title = T.title;
-            document.getElementById("pageTitle").textContent = T.title;
-            document.getElementById("pageSub").textContent = T.sub;
-            document.getElementById("card30title").textContent = T.t30;
-            document.getElementById("card30desc").textContent = T.d30;
-            document.getElementById("card60title").textContent = T.t60;
-            document.getElementById("card60desc").textContent = T.d60;
+
+            function applyLang(lang) {
+                const T = L[lang] || L.en;
+                const activeLang = L[lang] ? lang : "en";
+                document.documentElement.lang = activeLang;
+                document.title = T.title;
+                document.getElementById("pageTitle").textContent = T.title;
+                document.getElementById("pageSub").textContent = T.sub;
+                document.getElementById("card30title").textContent = T.t30;
+                document.getElementById("card30desc").textContent = T.d30;
+                document.getElementById("card60title").textContent = T.t60;
+                document.getElementById("card60desc").textContent = T.d60;
+                document.getElementById("btnDE").classList.toggle("active", activeLang === "de");
+                document.getElementById("btnEN").classList.toggle("active", activeLang !== "de");
+            }
+
+            function setLang(lang) {
+                localStorage.setItem("booking-lang", lang);
+                applyLang(lang);
+            }
+
+            const _saved = localStorage.getItem("booking-lang");
+            const _auto = navigator.language?.slice(0, 2).toLowerCase();
+            applyLang(_saved || (L[_auto] ? _auto : "en"));
         </script>
     </body>
 </html>

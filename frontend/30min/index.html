@@ -63,6 +63,37 @@
                 font-size: 1.1rem;
                 font-weight: 600;
             }
+            .lang-switch {
+                margin-left: auto;
+                display: inline-flex;
+                border: 1px solid var(--border);
+                border-radius: 999px;
+                overflow: hidden;
+            }
+            .lang-btn {
+                background: none;
+                border: none;
+                color: var(--muted);
+                cursor: pointer;
+                padding: 0.28rem 0.6rem;
+                font-family: inherit;
+                font-size: 0.7rem;
+                font-weight: 500;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                line-height: 1;
+                transition: background 0.15s, color 0.15s;
+            }
+            .lang-btn + .lang-btn {
+                border-left: 1px solid var(--border);
+            }
+            .lang-btn.active {
+                background: var(--primary);
+                color: var(--on-primary);
+            }
+            .lang-btn:not(.active):hover {
+                color: var(--primary);
+            }
             .layout {
                 display: grid;
                 grid-template-columns: 320px 1fr;
@@ -453,6 +484,10 @@
         <header>
             <a href="/" id="backLink">&larr; Back</a>
             <h1 id="pageTitle">Book a call</h1>
+            <div class="lang-switch">
+                <button class="lang-btn" id="btnDE" onclick="setLang('de')">DE</button>
+                <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+            </div>
         </header>
         <div class="layout">
             <div class="panel calendar-panel">
@@ -564,14 +599,27 @@
                 },
             };
 
-            const lang = navigator.language?.slice(0, 2).toLowerCase();
-            const T = LANGS[lang] || LANGS.en;
-            document.documentElement.lang = LANGS[lang] ? lang : "en";
-            document.title = T.title;
-            document.getElementById("pageTitle").textContent = T.title;
-            document.getElementById("backLink").textContent = T.back;
-            document.getElementById("placeholderText").textContent =
-                T.placeholder;
+            let T = LANGS.en;
+
+            const applyLang = (lang) => {
+                T = LANGS[lang] || LANGS.en;
+                const activeLang = LANGS[lang] ? lang : "en";
+                document.documentElement.lang = activeLang;
+                document.title = T.title;
+                document.getElementById("pageTitle").textContent = T.title;
+                document.getElementById("backLink").textContent = T.back;
+                const ph = document.getElementById("placeholderText");
+                if (ph) ph.textContent = T.placeholder;
+                document.getElementById("btnDE").classList.toggle("active", activeLang === "de");
+                document.getElementById("btnEN").classList.toggle("active", activeLang !== "de");
+                renderCalendar();
+                if (pairLeft) renderSlotsPanel();
+            };
+
+            const setLang = (lang) => {
+                localStorage.setItem("booking-lang", lang);
+                applyLang(lang);
+            };
 
             function toMondayIndex(jsDay) {
                 return (jsDay + 6) % 7;
@@ -941,7 +989,10 @@
                     }
                     renderCalendar();
                 });
-            renderCalendar();
+
+            const _sl = localStorage.getItem("booking-lang");
+            const _al = navigator.language?.slice(0, 2).toLowerCase();
+            applyLang(_sl || (LANGS[_al] ? _al : "en"));
         </script>
         <footer
             style="
