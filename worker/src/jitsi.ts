@@ -1,5 +1,5 @@
 export function generateUid(): string {
-  return `booking-${crypto.randomUUID()}`;
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 10);
 }
 
 export async function generateJitsiUrl(

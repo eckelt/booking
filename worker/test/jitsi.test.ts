@@ -6,8 +6,8 @@ const APP_ID = "vpaas-magic-cookie-test";
 const KEY_ID = "testkey";
 
 describe("generateUid", () => {
-  it("starts with booking-", () => {
-    expect(generateUid()).toMatch(/^booking-/);
+  it("is 10 hex characters", () => {
+    expect(generateUid()).toMatch(/^[0-9a-f]{10}$/);
   });
 
   it("generates unique IDs", () => {
@@ -31,7 +31,7 @@ describe("generateJitsiUrl", () => {
   });
 
   it("produces a JaaS 8x8.vc URL with appId and uid", async () => {
-    const uid = "booking-abc123";
+    const uid = "4dc3a700cf";
     const start = new Date("2026-07-01T10:00:00Z");
     const end = new Date("2026-07-01T10:30:00Z");
     const url = await generateJitsiUrl(uid, start, end, APP_ID, KEY_ID, FAKE_PEM);
@@ -39,7 +39,7 @@ describe("generateJitsiUrl", () => {
   });
 
   it("JWT has three dot-separated parts", async () => {
-    const uid = "booking-abc123";
+    const uid = "4dc3a700cf";
     const start = new Date("2026-07-01T10:00:00Z");
     const end = new Date("2026-07-01T10:30:00Z");
     const url = await generateJitsiUrl(uid, start, end, APP_ID, KEY_ID, FAKE_PEM);
