@@ -482,7 +482,7 @@
     </head>
     <body>
         <header>
-            <a href="/" id="backLink" onclick="if(history.length>1){event.preventDefault();history.back();}}">&larr; Back</a>
+            <a href="https://nils.ecke.lt/" id="backLink">&larr; Back</a>
             <h1 id="pageTitle">Book a call</h1>
             <div class="lang-switch">
                 <button class="lang-btn" id="btnDE" onclick="setLang('de')">DE</button>
@@ -537,6 +537,8 @@
                     days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
                     wday: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
                     locale: "en-GB",
+                    impressum: "Legal Notice",
+                    datenschutz: "Privacy Policy",
                 },
                 de: {
                     title: `${DURATION}-Minuten-Gespräch buchen`,
@@ -567,6 +569,8 @@
                     days: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
                     wday: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
                     locale: "de-DE",
+                    impressum: "Impressum",
+                    datenschutz: "Datenschutz",
                 },
                 es: {
                     title: `Reservar llamada de ${DURATION} minutos`,
@@ -596,6 +600,8 @@
                     days: ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"],
                     wday: ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sá"],
                     locale: "es-ES",
+                    impressum: "Aviso legal",
+                    datenschutz: "Privacidad",
                 },
             };
 
@@ -612,6 +618,10 @@
                 if (ph) ph.textContent = T.placeholder;
                 document.getElementById("btnDE").classList.toggle("active", activeLang === "de");
                 document.getElementById("btnEN").classList.toggle("active", activeLang !== "de");
+                const imp = document.getElementById("footerImpressum");
+                if (imp) imp.textContent = T.impressum;
+                const ds = document.getElementById("footerDatenschutz");
+                if (ds) ds.textContent = T.datenschutz;
                 renderCalendar();
                 if (pairLeft) renderSlotsPanel();
             };
@@ -1007,11 +1017,13 @@
             <a
                 href="https://nils.ecke.lt/impressum/"
                 style="color: var(--muted); text-decoration: none"
+                id="footerImpressum"
                 >Impressum</a
             >
             <a
                 href="https://nils.ecke.lt/datenschutz/"
                 style="color: var(--muted); text-decoration: none"
+                id="footerDatenschutz"
                 >Datenschutz</a
             >
         </footer>
