@@ -47,6 +47,17 @@
                 justify-content: center;
                 padding: 2rem 1rem;
             }
+            .back-link {
+                position: fixed;
+                top: 1.25rem;
+                left: 1.5rem;
+                color: var(--primary);
+                text-decoration: none;
+                font-size: 0.875rem;
+            }
+            .back-link:hover {
+                text-decoration: underline;
+            }
             .container {
                 max-width: 480px;
                 width: 100%;
@@ -137,6 +148,7 @@
         </style>
     </head>
     <body>
+        <a href="https://nils.ecke.lt/" id="backLink" class="back-link">&larr; Back</a>
         <div class="container">
             <h1 id="pageTitle">Book time with Nils Eckelt</h1>
             <p class="sub" id="pageSub">Choose a duration</p>
@@ -170,6 +182,7 @@
         <script>
             const L = {
                 en: {
+                    back: "← Back",
                     title: "Book time with Nils Eckelt",
                     sub: "Choose a duration",
                     t30: "30-minute call",
@@ -178,6 +191,7 @@
                     d60: "A deeper discussion",
                 },
                 de: {
+                    back: "← Zurück",
                     title: "Zeit buchen mit Nils Eckelt",
                     sub: "Dauer wählen",
                     t30: "30-Minuten-Gespräch",
@@ -186,6 +200,7 @@
                     d60: "Eine ausführlichere Unterhaltung",
                 },
                 es: {
+                    back: "← Volver",
                     title: "Reservar tiempo con Nils Eckelt",
                     sub: "Elige la duración",
                     t30: "Llamada de 30 minutos",
@@ -200,6 +215,7 @@
                 const activeLang = L[lang] ? lang : "en";
                 document.documentElement.lang = activeLang;
                 document.title = T.title;
+                document.getElementById("backLink").textContent = T.back;
                 document.getElementById("pageTitle").textContent = T.title;
                 document.getElementById("pageSub").textContent = T.sub;
                 document.getElementById("card30title").textContent = T.t30;
