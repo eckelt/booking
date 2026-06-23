@@ -10,9 +10,8 @@ OWNER_EMAIL = "nils@ecke.lt"
 CALDAV_CALENDAR_NILS = "bd0ce304-f055-4524-9273-80a7d8cee9f1"
 CALDAV_CALENDAR_OHANA = "0C692FAB-66C9-454F-B51D-D076560588DB"
 JAAS_APP_ID = "vpaas-magic-cookie-844afece898c44fe995febd212d45364"
-# Get JAAS_KEY_ID from https://jaas.8x8.vc/#/apikeys — the short ID shown next to your key
-JAAS_KEY_ID = "REPLACE_WITH_KEY_ID_FROM_JAAS_DASHBOARD"
-# JAAS_PRIVATE_KEY: run: wrangler secret put JAAS_PRIVATE_KEY
+JAAS_KEY_ID = "98c2cb"
+# JAAS_PRIVATE_KEY: stored as Cloudflare Worker secret
 
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
