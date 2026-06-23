@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -154,7 +154,7 @@
             <p class="sub" id="pageSub">Choose a duration</p>
             <div class="cards">
                 <a class="card" href="/30min/">
-                    <span class="card-arrow">&#8250;</span>
+                    <span class="card-arrow" aria-hidden="true">&#8250;</span>
                     <div class="card-title" id="card30title">
                         30-minute call
                     </div>
@@ -163,7 +163,7 @@
                     </div>
                 </a>
                 <a class="card" href="/60min/">
-                    <span class="card-arrow">&#8250;</span>
+                    <span class="card-arrow" aria-hidden="true">&#8250;</span>
                     <div class="card-title" id="card60title">
                         60-minute call
                     </div>
@@ -173,9 +173,9 @@
                 </a>
             </div>
             <div class="lang-switch">
-                <div class="lang-pill">
-                    <button class="lang-btn" id="btnDE" onclick="setLang('de')">DE</button>
-                    <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+                <div class="lang-pill" role="group" aria-label="Language">
+                    <button class="lang-btn" id="btnDE" lang="de" aria-pressed="false" aria-label="Deutsch" onclick="setLang('de')">DE</button>
+                    <button class="lang-btn" id="btnEN" lang="en" aria-pressed="false" aria-label="English" onclick="setLang('en')">EN</button>
                 </div>
             </div>
         </div>
@@ -224,6 +224,8 @@
                 document.getElementById("card60desc").textContent = T.d60;
                 document.getElementById("btnDE").classList.toggle("active", activeLang === "de");
                 document.getElementById("btnEN").classList.toggle("active", activeLang !== "de");
+                document.getElementById("btnDE").setAttribute("aria-pressed", String(activeLang === "de"));
+                document.getElementById("btnEN").setAttribute("aria-pressed", String(activeLang !== "de"));
             }
 
             function setLang(lang) {
