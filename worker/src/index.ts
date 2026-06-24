@@ -11,6 +11,42 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+const PAGE_STYLE = `
+  @font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("https://nils.ecke.lt/fonts/bricolage-grotesque.woff2") format("woff2"); }
+  @font-face { font-family: "DM Sans"; font-style: normal; font-weight: 400 500; font-display: swap; src: url("https://nils.ecke.lt/fonts/dm-sans.woff2") format("woff2"); }
+  :root { --bg: #fff; --text: #2c292d; --muted: #736e73; --accent: #006e8a; --rule: #e8e2dc; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #19181a; --text: #fcfcfa; --muted: #848085; --accent: #78dce8; --rule: #403e41; } }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 17px; }
+  body { background: var(--bg); color: var(--text); font-family: "DM Sans", system-ui, sans-serif; line-height: 1.75; padding: 0 1.5rem 5rem; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .wrap { max-width: 480px; width: 100%; }
+  h1 { font-family: "Bricolage Grotesque", system-ui, sans-serif; font-weight: 800; font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 1.25rem; }
+  p { color: var(--muted); margin-bottom: 0.75rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .back { display: inline-block; margin-top: 2rem; font-size: 0.85rem; color: var(--muted); }
+  .rule { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
+`;
+
+function page(title: string, heading: string, body: string, status = 200): Response {
+  return html(`<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} – Nils Eckelt</title>
+<style>${PAGE_STYLE}</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>${heading}</h1>
+  ${body}
+  <a class="back" href="https://book.ecke.lt">← Neuen Termin buchen</a>
+</div>
+</body>
+</html>`, status);
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -60,7 +96,12 @@ async function checkRateLimit(
 async function handleJoin(url: URL, env: Env): Promise<Response> {
   const uid = url.searchParams.get("uid")?.trim();
   if (!uid || !/^[\w-]+$/.test(uid)) {
-    return html("<h2>Invalid meeting link.</h2>", 400);
+    return page(
+      "Ungültiger Link",
+      "Ungültiger Meeting-Link",
+      "<p>Dieser Link ist nicht gültig. Bitte prüfe deine Buchungsbestätigung.</p>",
+      400
+    );
   }
   const now = new Date();
   const expires = new Date(now.getTime() + 2 * 60 * 60 * 1000);
@@ -163,24 +204,29 @@ async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Pr
 async function handleCancel(url: URL, request: Request, env: Env): Promise<Response> {
   const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
   if (!(await checkRateLimit(env, ip, "cancel", 10, 3600))) {
-    return html("<h2>Zu viele Anfragen.</h2>", 429);
+    return page(
+      "Zu viele Anfragen",
+      "Zu viele Anfragen",
+      "<p>Bitte versuche es später erneut.</p>",
+      429
+    );
   }
 
   const uid = url.searchParams.get("uid")?.trim();
   if (!uid || !/^[\w-]+$/.test(uid)) {
-    return html("<h2>Invalid cancellation link.</h2>", 400);
+    return page(
+      "Ungültiger Link",
+      "Ungültiger Storno-Link",
+      "<p>Dieser Link ist nicht gültig.</p>",
+      400
+    );
   }
   await deleteEvent(env, uid);
-  return html(`<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Booking cancelled</title>
-<style>body{font-family:sans-serif;max-width:500px;margin:60px auto;padding:20px;color:#2c292d}
-a{color:#006e8a}</style></head>
-<body>
-<h2>Booking cancelled</h2>
-<p>Your booking has been removed from the calendar.</p>
-<p><a href="https://book.ecke.lt">Book a new time</a></p>
-</body></html>`);
+  return page(
+    "Termin storniert",
+    "Termin storniert",
+    "<p>Dein Termin wurde aus dem Kalender entfernt.</p>"
+  );
 }
 
 function html(content: string, status = 200): Response {
