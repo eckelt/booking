@@ -59,7 +59,7 @@ async function checkRateLimit(
 
 async function handleJoin(url: URL, env: Env): Promise<Response> {
   const uid = url.searchParams.get("uid")?.trim();
-  if (!uid || !/^booking-[\w-]+$/.test(uid)) {
+  if (!uid || !/^[\w-]+$/.test(uid)) {
     return html("<h2>Invalid meeting link.</h2>", 400);
   }
   const now = new Date();
