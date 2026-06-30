@@ -181,8 +181,7 @@
                 display: grid;
                 grid-template-columns: repeat(7, 1fr);
                 gap: 2px;
-                flex: 1;
-                min-width: 0;
+                flex-shrink: 0;
             }
             .cal-slide-viewport {
                 overflow: hidden;
@@ -190,7 +189,6 @@
             }
             .cal-slide-track {
                 display: flex;
-                width: 300%;
                 will-change: transform;
             }
             .cal-slide-track.is-animating {
@@ -1094,8 +1092,10 @@
             // === Carousel swipe ===
             const _vp    = document.getElementById("calViewport");
             const _track = document.getElementById("calTrack");
+            const _grids = _track.querySelectorAll(".cal-grid");
 
             function _w() { return _vp.clientWidth; }
+            function _setWidths(w) { _grids.forEach(g => { g.style.width = w + "px"; }); }
 
             function _slideTo(px, animate, then) {
                 _track.classList.toggle("is-animating", animate);
@@ -1155,15 +1155,19 @@
             }, { passive: true });
 
             window.addEventListener("resize", () => {
+                const w = _vp.clientWidth;
+                _setWidths(w);
                 _track.classList.remove("is-animating");
-                _track.style.transform = `translateX(${-_vp.clientWidth}px)`;
+                _track.style.transform = `translateX(${-w}px)`;
             }, { passive: true });
 
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
             applyLang(_sl || (LANGS[_al] ? _al : "en"));
             requestAnimationFrame(() => {
-                _track.style.transform = `translateX(${-_vp.clientWidth}px)`;
+                const w = _vp.clientWidth;
+                _setWidths(w);
+                _track.style.transform = `translateX(${-w}px)`;
             });
             prefetchInitialSlots();
         </script>
