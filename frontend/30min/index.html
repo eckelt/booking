@@ -507,6 +507,9 @@
                 padding-right: 0;
                 border-width: 0;
             }
+            .slot-collapsed .slots-nav {
+                margin-bottom: 0.15rem;
+            }
             .slot-collapsed
                 .slots-day-grid:has(
                     .slots-day-col:first-child .slot-btn.selected
@@ -1114,10 +1117,22 @@
 
             function _w() { return _vp.clientWidth; }
 
+            let _swipeCb = null;
+
             function _slideTo(px, animate, then) {
                 _track.classList.toggle("is-animating", animate);
                 _track.style.transform = px === 0 ? "" : `translateX(${px}px)`;
-                if (then) _track.addEventListener("transitionend", then, { once: true });
+                if (then) {
+                    _swipeCb = then;
+                    const done = (e) => {
+                        if (e.propertyName !== "transform") return;
+                        _track.removeEventListener("transitionend", done);
+                        const cb = _swipeCb;
+                        _swipeCb = null;
+                        if (cb) cb();
+                    };
+                    _track.addEventListener("transitionend", done);
+                }
             }
 
             function _resetTrack() {
@@ -1145,10 +1160,13 @@
                     _vp.getBoundingClientRect();
                     _vp.style.transition = "height 0.22s ease";
                     _vp.style.height = newH + "px";
-                    _vp.addEventListener("transitionend", () => {
+                    const onH = (e) => {
+                        if (e.target !== _vp) return;
+                        _vp.removeEventListener("transitionend", onH);
                         _vp.style.height = "";
                         _vp.style.transition = "";
-                    }, { once: true });
+                    };
+                    _vp.addEventListener("transitionend", onH);
                 } else {
                     _vp.style.height = "";
                 }
@@ -1165,6 +1183,7 @@
             let _tx = null;
             _vp.addEventListener("touchstart", (e) => {
                 _tx = e.changedTouches[0].clientX;
+                _swipeCb = null;
                 _track.classList.remove("is-animating");
                 _track.style.transform = "";
             }, { passive: true });
