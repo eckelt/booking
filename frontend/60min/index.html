@@ -190,7 +190,6 @@
             .cal-slide-track {
                 display: flex;
                 width: 300%;
-                transform: translateX(calc(-100% / 3));
                 will-change: transform;
             }
             .cal-slide-track.is-animating {
@@ -1105,7 +1104,7 @@
 
             function _resetTrack() {
                 _track.classList.remove("is-animating");
-                _track.style.transform = "";
+                _track.style.transform = `translateX(${-_vp.clientWidth}px)`;
             }
 
             function _commitMonth(dir) {
@@ -1154,9 +1153,17 @@
                 else                     _slideTo(-_w(),      true);
             }, { passive: true });
 
+            window.addEventListener("resize", () => {
+                _track.classList.remove("is-animating");
+                _track.style.transform = `translateX(${-_vp.clientWidth}px)`;
+            }, { passive: true });
+
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
             applyLang(_sl || (LANGS[_al] ? _al : "en"));
+            requestAnimationFrame(() => {
+                _track.style.transform = `translateX(${-_vp.clientWidth}px)`;
+            });
             prefetchInitialSlots();
         </script>
         <footer style="text-align:center;padding:1.25rem 1rem 2rem;font-size:0.75rem;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:0.4rem;flex-wrap:wrap;">
