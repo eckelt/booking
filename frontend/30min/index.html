@@ -173,13 +173,16 @@
                 display: grid;
                 grid-template-columns: repeat(7, 1fr);
                 gap: 2px;
-                flex-shrink: 0;
+                flex: 1;
+                min-width: 0;
             }
             .cal-slide-viewport {
                 overflow: hidden;
             }
             .cal-slide-track {
                 display: flex;
+                width: 300%;
+                transform: translateX(calc(-100% / 3));
                 will-change: transform;
             }
             .cal-slide-track.is-animating {
@@ -1094,7 +1097,7 @@
 
             function _resetTrack() {
                 _track.classList.remove("is-animating");
-                _track.style.transform = `translateX(${-_w()}px)`;
+                _track.style.transform = "";
             }
 
             function _commitMonth(dir) {
@@ -1109,10 +1112,16 @@
             }
 
             document.getElementById("prevMonth").addEventListener("click", () => {
+                const w = _w();
+                _track.style.transform = `translateX(${-w}px)`;
+                _track.getBoundingClientRect();
                 _slideTo(0, true, () => _commitMonth(-1));
             });
             document.getElementById("nextMonth").addEventListener("click", () => {
-                _slideTo(-_w() * 2, true, () => _commitMonth(1));
+                const w = _w();
+                _track.style.transform = `translateX(${-w}px)`;
+                _track.getBoundingClientRect();
+                _slideTo(-w * 2, true, () => _commitMonth(1));
             });
 
             // Touch drag
@@ -1120,6 +1129,7 @@
             _vp.addEventListener("touchstart", (e) => {
                 _tx = e.changedTouches[0].clientX;
                 _track.classList.remove("is-animating");
+                _track.style.transform = `translateX(${-_w()}px)`;
             }, { passive: true });
             _vp.addEventListener("touchmove", (e) => {
                 if (_tx === null) return;
@@ -1136,20 +1146,9 @@
                 else                     _slideTo(-_w(),      true);
             }, { passive: true });
 
-            // Size grids and position track after layout
-            function _initTrack() {
-                const w = _w();
-                document.querySelectorAll(".cal-slide-track .cal-grid").forEach(g => {
-                    g.style.width = w + "px";
-                });
-                _resetTrack();
-            }
-            window.addEventListener("resize", _initTrack, { passive: true });
-
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
             applyLang(_sl || (LANGS[_al] ? _al : "en"));
-            _initTrack();
             prefetchInitialSlots();
         </script>
         <footer style="text-align:center;padding:1.25rem 1rem 2rem;font-size:0.75rem;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:0.4rem;flex-wrap:wrap;">
