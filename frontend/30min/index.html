@@ -1082,7 +1082,7 @@
 
             // Swipe left/right on calendar to navigate months
             let _swipeX = null;
-            const _calPanel = document.getElementById("calendarPanel");
+            const _calPanel = document.querySelector(".calendar-panel");
             _calPanel.addEventListener("touchstart", (e) => {
                 _swipeX = e.changedTouches[0].clientX;
             }, { passive: true });
