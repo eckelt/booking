@@ -1133,8 +1133,26 @@
                 document.getElementById("calTitle").textContent = new Date(
                     viewYear, viewMonth, 1,
                 ).toLocaleDateString(T.locale, { month: "long", year: "numeric" });
+
+                _vp.style.transition = "";
+                const oldH = _vp.clientHeight;
+                _vp.style.height = oldH + "px";
+
                 renderCalendar();
                 _resetTrack();
+
+                const newH = document.getElementById("calGrid").offsetHeight;
+                if (Math.abs(newH - oldH) > 1) {
+                    _vp.getBoundingClientRect();
+                    _vp.style.transition = "height 0.22s ease";
+                    _vp.style.height = newH + "px";
+                    _vp.addEventListener("transitionend", () => {
+                        _vp.style.height = "";
+                        _vp.style.transition = "";
+                    }, { once: true });
+                } else {
+                    _vp.style.height = "";
+                }
             }
 
             document.getElementById("prevMonth").addEventListener("click", () => {
