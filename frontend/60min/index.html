@@ -1022,8 +1022,8 @@
 
             function showForm(container, slot) {
                 const params = new URLSearchParams(location.search);
-                const preName = params.get("name") || "",
-                    preEmail = params.get("email") || "";
+                const preName = params.get("name") || localStorage.getItem("booking-name") || "";
+                const preEmail = params.get("email") || localStorage.getItem("booking-email") || "";
                 const isReschedule = !!params.get("reschedule");
                 container.innerHTML = `
         <form class="booking-form" id="bForm" novalidate>
@@ -1035,6 +1035,10 @@
           <p class="privacy-note">${T.privacyNote}</p>
         </form>`;
                 collapseSlots(slot);
+                document.getElementById("fNotes").value = localStorage.getItem("booking-notes") || "";
+                document.getElementById("fName").addEventListener("input", (e) => localStorage.setItem("booking-name", e.target.value));
+                document.getElementById("fEmail").addEventListener("input", (e) => localStorage.setItem("booking-email", e.target.value));
+                document.getElementById("fNotes").addEventListener("input", (e) => localStorage.setItem("booking-notes", e.target.value));
                 document
                     .getElementById("bForm")
                     .addEventListener("submit", async (e) => {
@@ -1101,6 +1105,7 @@
                                     timeZone: TZ,
                                 },
                             );
+                            localStorage.removeItem("booking-notes");
                             panel.innerHTML = `<div class="success-box"><div class="success-icon" aria-hidden="true">&#x2705;</div><h2>${T.successTitle}</h2><p>${dayFmt} &ndash; ${fmt(slot.end)}</p><p>${T.successEmail}</p>${data.jitsiUrl ? `<a class="jitsi-link" href="${data.jitsiUrl}" target="_blank" rel="noopener">${data.jitsiUrl}</a>` : ""}</div>`;
                         } catch (ex) {
                             btn.disabled = false;
