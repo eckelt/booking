@@ -1209,7 +1209,12 @@
                 _slideTo(0, true);
             }, { passive: true });
 
+            let _lastW = _w();
             window.addEventListener("resize", () => {
+                const w = _w();
+                if (w === _lastW) return;
+                _lastW = w;
+                _swipeCb = null;
                 _track.classList.remove("is-animating");
                 _track.style.transform = "";
             }, { passive: true });
