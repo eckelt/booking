@@ -714,6 +714,14 @@
             const today = startOfDay(new Date());
             let viewYear = today.getFullYear(),
                 viewMonth = today.getMonth();
+            // Jump to the month that contains the first bookable day
+            (function () {
+                const fb = firstBookable();
+                if (fb.getFullYear() > viewYear || fb.getMonth() > viewMonth) {
+                    viewYear = fb.getFullYear();
+                    viewMonth = fb.getMonth();
+                }
+            })();
             let pairLeft = null,
                 pairRight = null,
                 selectedSlot = null;
@@ -1069,6 +1077,22 @@
                     }
                     renderCalendar();
                 });
+
+            // Swipe left/right on calendar to navigate months
+            let _swipeX = null;
+            const _calPanel = document.getElementById("calendarPanel");
+            _calPanel.addEventListener("touchstart", (e) => {
+                _swipeX = e.changedTouches[0].clientX;
+            }, { passive: true });
+            _calPanel.addEventListener("touchend", (e) => {
+                if (_swipeX === null) return;
+                const dx = e.changedTouches[0].clientX - _swipeX;
+                _swipeX = null;
+                if (Math.abs(dx) < 50) return;
+                if (dx < 0) { viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } }
+                else         { viewMonth--; if (viewMonth < 0)  { viewMonth = 11; viewYear--; } }
+                renderCalendar();
+            }, { passive: true });
 
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
