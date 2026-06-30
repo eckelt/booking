@@ -1161,7 +1161,7 @@
                     _vp.style.transition = "height 0.22s ease";
                     _vp.style.height = newH + "px";
                     const onH = (e) => {
-                        if (e.target !== _vp) return;
+                        if (e.target !== _vp || e.propertyName !== "height") return;
                         _vp.removeEventListener("transitionend", onH);
                         _vp.style.height = "";
                         _vp.style.transition = "";
@@ -1200,6 +1200,12 @@
                 if (dx < -threshold)     _slideTo(-_w(), true, () => _commitMonth(1));
                 else if (dx > threshold) _slideTo(_w(),  true, () => _commitMonth(-1));
                 else                     _slideTo(0,     true);
+            }, { passive: true });
+            _vp.addEventListener("touchcancel", () => {
+                if (_tx === null) return;
+                _tx = null;
+                _swipeCb = null;
+                _slideTo(0, true);
             }, { passive: true });
 
             window.addEventListener("resize", () => {
