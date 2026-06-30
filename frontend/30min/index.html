@@ -182,14 +182,17 @@
                 grid-template-columns: repeat(7, 1fr);
                 gap: 2px;
                 flex-shrink: 0;
+                width: calc(100% / 3);
             }
             .cal-slide-viewport {
                 overflow: hidden;
                 width: 100%;
+                transform: translateZ(0);
             }
             .cal-slide-track {
                 display: flex;
                 will-change: transform;
+                width: 300%;
             }
             .cal-slide-track.is-animating {
                 transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1092,10 +1095,8 @@
             // === Carousel swipe ===
             const _vp    = document.getElementById("calViewport");
             const _track = document.getElementById("calTrack");
-            const _grids = _track.querySelectorAll(".cal-grid");
 
             function _w() { return _vp.clientWidth; }
-            function _setWidths(w) { _grids.forEach(g => { g.style.width = w + "px"; }); }
 
             function _slideTo(px, animate, then) {
                 _track.classList.toggle("is-animating", animate);
@@ -1155,19 +1156,15 @@
             }, { passive: true });
 
             window.addEventListener("resize", () => {
-                const w = _vp.clientWidth;
-                _setWidths(w);
                 _track.classList.remove("is-animating");
-                _track.style.transform = `translateX(${-w}px)`;
+                _track.style.transform = `translateX(${-_vp.clientWidth}px)`;
             }, { passive: true });
 
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
             applyLang(_sl || (LANGS[_al] ? _al : "en"));
             requestAnimationFrame(() => {
-                const w = _vp.clientWidth;
-                _setWidths(w);
-                _track.style.transform = `translateX(${-w}px)`;
+                _track.style.transform = `translateX(${-_vp.clientWidth}px)`;
             });
             prefetchInitialSlots();
         </script>
