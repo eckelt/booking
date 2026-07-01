@@ -542,10 +542,15 @@
                 animation: fadeIn 0.3s ease;
             }
             .success-icon {
-                font-size: 3rem;
                 margin-bottom: 0.75rem;
                 display: block;
                 animation: icon-pop 0.45s 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+            }
+            .success-icon svg {
+                width: 3rem;
+                height: 3rem;
+                stroke: var(--primary);
+                fill: none;
             }
             .success-box h2 {
                 font-size: 1.3rem;
@@ -1318,7 +1323,7 @@
                             );
                             balloon.land();
                             localStorage.removeItem("booking-notes");
-                            panel.innerHTML = `<div class="success-box"><div class="success-icon" aria-hidden="true">&#x2705;</div><h2>${T.successTitle}</h2><p>${dayFmt} &ndash; ${fmt(slot.end)}</p><p>${T.successEmail}</p>${data.jitsiUrl ? `<a class="jitsi-link" href="${data.jitsiUrl}" target="_blank" rel="noopener">${data.jitsiUrl}</a>` : ""}</div>`;
+                            panel.innerHTML = `<div class="success-box"><div class="success-icon" aria-hidden="true"><svg viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 13 9 18 20 7"/></svg></div><h2>${T.successTitle}</h2><p>${dayFmt} &ndash; ${fmt(slot.end)}</p><p>${T.successEmail}</p>${data.jitsiUrl ? `<a class="jitsi-link" href="${data.jitsiUrl}" target="_blank" rel="noopener">${data.jitsiUrl}</a>` : ""}</div>`;
                         } catch (ex) {
                             balloon.crash();
                             btn.disabled = false;
