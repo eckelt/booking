@@ -903,7 +903,7 @@
                 const morphAnim = btn.animate([
                     { transform: 'translate(0px, 0px)', width: `${rect.width}px`, height: `${rect.height}px`, borderRadius: '0.4rem', opacity: 1 },
                     { transform: `translate(${shiftX}px, ${shiftY}px)`, width: `${circleSize}px`, height: `${circleSize}px`, borderRadius: '50%', opacity: 1 }
-                ], { duration: 140, easing: 'ease-in-out', fill: 'forwards' });
+                ], { duration: 100, easing: 'ease-in-out', fill: 'forwards' });
 
                 // Phase 2: loop high up + shrink to 50%, then fly to upper-right (composited on morph)
                 // scale() shrinks from element center; composite:'add' concatenates with morph's translate
@@ -924,12 +924,12 @@
                         { offset: 0.64, transform: `translate(${-lx * 0.05}px, ${-ly * 0.9}px) scale(0.52)`,        easing: 'ease-in-out' },
                         { offset: 0.74, transform: `translate(${lx * 0.25}px, ${-ly * 1.55}px) scale(0.5)`,         easing: 'cubic-bezier(0.15, 0, 0.0, 1)' },
                         { offset: 1,    transform: `translate(${endX}px, ${endY}px) scale(0.5)` }
-                    ], { duration: 680, fill: 'forwards', composite: 'add' });
+                    ], { duration: 460, fill: 'forwards', composite: 'add' });
                 }).catch(() => {});
 
                 return {
                     land() {
-                        setTimeout(() => { btn.remove(); ph.remove(); }, 860);
+                        setTimeout(() => { btn.remove(); ph.remove(); }, 600);
                     },
                     crash() {
                         const curRect = btn.getBoundingClientRect();
@@ -948,7 +948,7 @@
                               width: `${curRect.width}px`, height: `${curRect.height}px`, borderRadius: '50%', opacity: 1 },
                             { transform: `translate(${phRect.left - curRect.left}px, ${phRect.top - curRect.top}px)`,
                               width: `${rect.width}px`, height: `${rect.height}px`, borderRadius: '0.4rem', opacity: 1 }
-                        ], { duration: 320, easing: 'ease-in-out', fill: 'none' })
+                        ], { duration: 220, easing: 'ease-in-out', fill: 'none' })
                         .finished.then(() => {
                             ph.replaceWith(btn);
                             btn.style.cssText = '';
