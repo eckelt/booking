@@ -932,10 +932,27 @@
                         setTimeout(() => { btn.remove(); ph.remove(); }, 860);
                     },
                     crash() {
+                        const curRect = btn.getBoundingClientRect();
+                        const phRect  = ph.getBoundingClientRect();
                         if (flyAnim) flyAnim.cancel();
                         morphAnim.cancel();
-                        ph.replaceWith(btn);
-                        btn.style.cssText = '';
+                        // Teleport inline style to current visual position so cancel() causes no visible snap
+                        btn.style.left         = `${curRect.left}px`;
+                        btn.style.top          = `${curRect.top}px`;
+                        btn.style.width        = `${curRect.width}px`;
+                        btn.style.height       = `${curRect.height}px`;
+                        btn.style.borderRadius = '50%';
+                        // Animate circle back to pill at original form position
+                        btn.animate([
+                            { transform: 'translate(0px, 0px)',
+                              width: `${curRect.width}px`, height: `${curRect.height}px`, borderRadius: '50%', opacity: 1 },
+                            { transform: `translate(${phRect.left - curRect.left}px, ${phRect.top - curRect.top}px)`,
+                              width: `${rect.width}px`, height: `${rect.height}px`, borderRadius: '0.4rem', opacity: 1 }
+                        ], { duration: 320, easing: 'ease-in-out', fill: 'none' })
+                        .finished.then(() => {
+                            ph.replaceWith(btn);
+                            btn.style.cssText = '';
+                        });
                     }
                 };
             }
