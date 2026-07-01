@@ -885,29 +885,39 @@
                 ph.style.cssText = `height:${rect.height}px;flex-shrink:0;`;
                 btn.insertAdjacentElement('beforebegin', ph);
                 document.body.appendChild(btn);
-                btn.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:9999;margin:0;`;
-                const frames = [{ offset: 0, transform: 'translate(0,0) rotate(0deg)' }];
-                let tx = 0, ty = 0, rot = 0;
-                for (let i = 1; i <= 9; i++) {
-                    const p = i / 9;
-                    const spd = Math.pow(1 - p, 1.4) * 130 + 12;
-                    tx  += (Math.random() - 0.45) * spd;
-                    ty  += (Math.random() - 0.78) * spd;
-                    rot += (Math.random() - 0.5)  * 85;
-                    frames.push({ offset: p, transform: `translate(${tx}px,${ty}px) rotate(${rot}deg)` });
-                }
-                const anim = btn.animate(frames, { duration: 2600, easing: 'linear', fill: 'forwards' });
+                btn.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:9999;margin:0;padding:0;overflow:hidden;`;
+                btn.textContent = '';
+
+                // Phase 1: morph pill → circle (200ms)
+                const morphAnim = btn.animate([
+                    { width: `${rect.width}px`, borderRadius: '0.4rem' },
+                    { width: `${rect.height}px`, borderRadius: '50%' }
+                ], { duration: 200, easing: 'ease-in-out', fill: 'forwards' });
+
+                // Phase 2: arc to upper-right (480ms) — starts after morph
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const endX = vw - rect.left - rect.height + 20;   // near right edge
+                const endY = -(rect.top + rect.height + 20);       // above top edge
+                const midX = endX * 0.35;
+                const midY = endY * 0.5;
+
+                let flyAnim;
+                morphAnim.finished.then(() => {
+                    flyAnim = btn.animate([
+                        { offset: 0,   transform: 'translate(0, 0)',              easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+                        { offset: 0.4, transform: `translate(${midX}px, ${midY}px)`, easing: 'cubic-bezier(0.2, 0, 0.0, 1)' },
+                        { offset: 1,   transform: `translate(${endX}px, ${endY}px)` }
+                    ], { duration: 480, fill: 'forwards' });
+                });
+
                 return {
                     land() {
-                        anim.cancel();
-                        btn.animate(
-                            [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0) rotate(180deg)' }],
-                            { duration: 350, fill: 'forwards' }
-                        );
-                        setTimeout(() => { btn.remove(); ph.remove(); }, 350);
+                        setTimeout(() => { btn.remove(); ph.remove(); }, 700);
                     },
                     crash() {
-                        anim.cancel();
+                        if (flyAnim) flyAnim.cancel();
+                        morphAnim.cancel();
                         ph.replaceWith(btn);
                         btn.style.cssText = '';
                     }
