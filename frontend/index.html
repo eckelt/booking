@@ -160,6 +160,8 @@
                 font-family: inherit;
                 color: var(--text);
                 width: 100%;
+                position: relative;
+                overflow: hidden;
                 transition:
                     border-color 0.15s,
                     box-shadow 0.15s;
@@ -289,6 +291,8 @@
                 font-size: 0.875rem;
                 cursor: default;
                 color: var(--muted);
+                position: relative;
+                overflow: hidden;
                 transition:
                     background 0.1s,
                     color 0.1s;
@@ -312,6 +316,7 @@
                 background: var(--primary) !important;
                 color: var(--on-primary) !important;
                 border-radius: 50%;
+                animation: cell-pop 0.25s ease-out;
             }
             .cal-cell.today {
                 font-weight: 700;
@@ -400,6 +405,7 @@
                 width: 100%;
                 max-height: 3rem;
                 overflow: hidden;
+                position: relative;
                 transition:
                     border-color 0.15s,
                     border-width 0.3s ease,
@@ -426,6 +432,7 @@
                 background: var(--primary);
                 color: var(--on-primary);
                 font-weight: 600;
+                animation: slot-pop 0.2s ease-out;
             }
             .slots-loading,
             .slots-empty {
@@ -444,14 +451,30 @@
                 animation: fadeIn 0.2s ease;
             }
             @keyframes fadeIn {
-                from {
-                    opacity: 0;
-                    transform: translateY(6px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
+                from { opacity: 0; transform: translateY(6px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes ripple-expand {
+                from { transform: scale(0); opacity: 0.45; }
+                to   { transform: scale(4); opacity: 0; }
+            }
+            @keyframes cell-pop {
+                0%   { transform: scale(0.78); }
+                60%  { transform: scale(1.18); }
+                100% { transform: scale(1); }
+            }
+            @keyframes slot-pop {
+                0%   { transform: scale(0.93); }
+                55%  { transform: scale(1.07); }
+                100% { transform: scale(1); }
+            }
+            @keyframes icon-pop {
+                from { transform: scale(0) rotate(-25deg); opacity: 0; }
+                to   { transform: scale(1) rotate(0deg);  opacity: 1; }
+            }
+            @keyframes btn-float {
+                0%, 100% { transform: translateY(0)    rotate(-1.5deg); }
+                50%       { transform: translateY(-4px) rotate(1.5deg);  }
             }
             .form-group {
                 display: flex;
@@ -501,8 +524,9 @@
                     background 0.15s,
                     opacity 0.15s;
             }
-            .btn-confirm:hover {
+            .btn-confirm:not(:disabled):hover {
                 background: var(--primary-hover);
+                animation: btn-float 1.5s ease-in-out infinite;
             }
             .btn-confirm:disabled {
                 opacity: 0.6;
@@ -520,6 +544,8 @@
             .success-icon {
                 font-size: 3rem;
                 margin-bottom: 0.75rem;
+                display: block;
+                animation: icon-pop 0.45s 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
             }
             .success-box h2 {
                 font-size: 1.3rem;
@@ -842,6 +868,52 @@
                 applyLang(lang);
             };
 
+            function spawnRipple(el, e) {
+                const rect = el.getBoundingClientRect();
+                const x = e ? e.clientX - rect.left : rect.width / 2;
+                const y = e ? e.clientY - rect.top  : rect.height / 2;
+                const size = Math.max(rect.width, rect.height);
+                const r = document.createElement('span');
+                r.style.cssText = `position:absolute;border-radius:50%;pointer-events:none;width:${size}px;height:${size}px;left:${x - size/2}px;top:${y - size/2}px;background:color-mix(in srgb,var(--primary) 30%,transparent);transform:scale(0);animation:ripple-expand 0.55s ease-out forwards;`;
+                el.appendChild(r);
+                r.addEventListener('animationend', () => r.remove(), { once: true });
+            }
+
+            function animateBalloon(btn) {
+                const rect = btn.getBoundingClientRect();
+                const ph = document.createElement('div');
+                ph.style.cssText = `height:${rect.height}px;flex-shrink:0;`;
+                btn.insertAdjacentElement('beforebegin', ph);
+                document.body.appendChild(btn);
+                btn.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:9999;margin:0;`;
+                const frames = [{ offset: 0, transform: 'translate(0,0) rotate(0deg)' }];
+                let tx = 0, ty = 0, rot = 0;
+                for (let i = 1; i <= 9; i++) {
+                    const p = i / 9;
+                    const spd = Math.pow(1 - p, 1.4) * 130 + 12;
+                    tx  += (Math.random() - 0.45) * spd;
+                    ty  += (Math.random() - 0.78) * spd;
+                    rot += (Math.random() - 0.5)  * 85;
+                    frames.push({ offset: p, transform: `translate(${tx}px,${ty}px) rotate(${rot}deg)` });
+                }
+                const anim = btn.animate(frames, { duration: 2600, easing: 'linear', fill: 'forwards' });
+                return {
+                    land() {
+                        anim.cancel();
+                        btn.animate(
+                            [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0) rotate(180deg)' }],
+                            { duration: 350, fill: 'forwards' }
+                        );
+                        setTimeout(() => { btn.remove(); ph.remove(); }, 350);
+                    },
+                    crash() {
+                        anim.cancel();
+                        ph.replaceWith(btn);
+                        btn.style.cssText = '';
+                    }
+                };
+            }
+
             function toMondayIndex(jsDay) {
                 return (jsDay + 6) % 7;
             }
@@ -948,9 +1020,9 @@
                         el.setAttribute("tabindex", "0");
                         el.setAttribute("aria-pressed", "false");
                         el.setAttribute("aria-label", date.toLocaleDateString(T.locale, { weekday: "long", day: "numeric", month: "long" }));
-                        el.addEventListener("click", () => selectDay(date));
+                        el.addEventListener("click", (e) => { spawnRipple(el, e); selectDay(date); });
                         el.addEventListener("keydown", (ev) => {
-                            if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); selectDay(date); }
+                            if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); spawnRipple(el, null); selectDay(date); }
                         });
                     } else {
                         el.classList.add("disabled");
@@ -1087,7 +1159,8 @@
                     )
                     .join("");
                 el.querySelectorAll(".slot-btn").forEach((btn) => {
-                    btn.addEventListener("click", () => {
+                    btn.addEventListener("click", (e) => {
+                        spawnRipple(btn, e);
                         document
                             .querySelectorAll(".slot-btn")
                             .forEach((b) => {
@@ -1194,6 +1267,7 @@
                         }
                         btn.disabled = true;
                         btn.textContent = T.confirming;
+                        const balloon = animateBalloon(btn);
                         try {
                             const rescheduleUid =
                                 new URLSearchParams(location.search).get(
@@ -1232,9 +1306,11 @@
                                     timeZone: TZ,
                                 },
                             );
+                            balloon.land();
                             localStorage.removeItem("booking-notes");
                             panel.innerHTML = `<div class="success-box"><div class="success-icon" aria-hidden="true">&#x2705;</div><h2>${T.successTitle}</h2><p>${dayFmt} &ndash; ${fmt(slot.end)}</p><p>${T.successEmail}</p>${data.jitsiUrl ? `<a class="jitsi-link" href="${data.jitsiUrl}" target="_blank" rel="noopener">${data.jitsiUrl}</a>` : ""}</div>`;
                         } catch (ex) {
+                            balloon.crash();
                             btn.disabled = false;
                             btn.textContent = T.confirm;
                             err.textContent = ex.message || T.errGeneric;
@@ -1349,6 +1425,10 @@
                 _track.classList.remove("is-animating");
                 _track.style.transform = "";
             }, { passive: true });
+
+            document.querySelectorAll('.dur-card').forEach(card => {
+                card.addEventListener('click', (e) => spawnRipple(card, e));
+            });
 
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
