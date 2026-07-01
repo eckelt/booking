@@ -893,32 +893,40 @@
                 btn.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:9999;margin:0;padding:0;overflow:hidden;`;
                 btn.textContent = '';
 
-                // Phase 1: morph pill → circle (200ms)
-                const morphAnim = btn.animate([
-                    { width: `${rect.width}px`, borderRadius: '0.4rem' },
-                    { width: `${rect.height}px`, borderRadius: '50%' }
-                ], { duration: 200, easing: 'ease-in-out', fill: 'forwards' });
+                // Circle slightly larger than button height, centered on button center
+                const circleSize = Math.round(rect.height * 1.25);
+                const shiftX = (rect.width - circleSize) / 2;
+                const shiftY = (rect.height - circleSize) / 2;
 
-                // Phase 2: arc to upper-right (480ms) — starts after morph
-                const vw = window.innerWidth;
-                const vh = window.innerHeight;
-                const endX = vw - rect.left - rect.height + 20;   // near right edge
-                const endY = -(rect.top + rect.height + 20);       // above top edge
-                const midX = endX * 0.35;
-                const midY = endY * 0.5;
+                // Phase 1: pill → circle (220ms), centered via transform offset
+                const morphAnim = btn.animate([
+                    { transform: 'translate(0px, 0px)', width: `${rect.width}px`, height: `${rect.height}px`, borderRadius: '0.4rem' },
+                    { transform: `translate(${shiftX}px, ${shiftY}px)`, width: `${circleSize}px`, height: `${circleSize}px`, borderRadius: '50%' }
+                ], { duration: 220, easing: 'ease-in-out', fill: 'forwards' });
+
+                // Phase 2: small curly loop, then fly to upper-right (composited on morph)
+                const lx = 50, ly = 44;
+                const btnCX = rect.left + rect.width / 2;
+                const btnCY = rect.top + rect.height / 2;
+                const endX = window.innerWidth - btnCX + 40;
+                const endY = -(btnCY + 30);
 
                 let flyAnim;
                 morphAnim.finished.then(() => {
                     flyAnim = btn.animate([
-                        { offset: 0,   transform: 'translate(0, 0)',              easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
-                        { offset: 0.4, transform: `translate(${midX}px, ${midY}px)`, easing: 'cubic-bezier(0.2, 0, 0.0, 1)' },
-                        { offset: 1,   transform: `translate(${endX}px, ${endY}px)` }
-                    ], { duration: 480, fill: 'forwards' });
-                });
+                        { offset: 0,    transform: 'translate(0px, 0px)',                           easing: 'ease-in-out' },
+                        { offset: 0.15, transform: `translate(${lx * 0.5}px, ${-ly}px)`,           easing: 'ease-in-out' },
+                        { offset: 0.32, transform: `translate(${lx}px, 0px)`,                      easing: 'ease-in-out' },
+                        { offset: 0.48, transform: `translate(${lx * 0.5}px, ${ly * 0.65}px)`,    easing: 'ease-in-out' },
+                        { offset: 0.60, transform: `translate(${-lx * 0.1}px, ${ly * 0.2}px)`,    easing: 'ease-in-out' },
+                        { offset: 0.70, transform: `translate(${-lx * 0.2}px, ${-ly * 0.4}px)`,   easing: 'cubic-bezier(0.15, 0, 0.0, 1)' },
+                        { offset: 1,    transform: `translate(${endX}px, ${endY}px)` }
+                    ], { duration: 600, fill: 'forwards', composite: 'add' });
+                }).catch(() => {});
 
                 return {
                     land() {
-                        setTimeout(() => { btn.remove(); ph.remove(); }, 700);
+                        setTimeout(() => { btn.remove(); ph.remove(); }, 870);
                     },
                     crash() {
                         if (flyAnim) flyAnim.cancel();
