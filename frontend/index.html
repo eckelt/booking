@@ -890,7 +890,8 @@
                 ph.style.cssText = `height:${rect.height}px;flex-shrink:0;`;
                 btn.insertAdjacentElement('beforebegin', ph);
                 document.body.appendChild(btn);
-                btn.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:9999;margin:0;padding:0;overflow:hidden;`;
+                // opacity:1 overrides :disabled CSS opacity
+                btn.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:9999;margin:0;padding:0;overflow:hidden;opacity:1;`;
                 btn.textContent = '';
 
                 // Circle slightly larger than button height, centered on button center
@@ -898,14 +899,15 @@
                 const shiftX = (rect.width - circleSize) / 2;
                 const shiftY = (rect.height - circleSize) / 2;
 
-                // Phase 1: pill → circle (220ms), centered via transform offset
+                // Phase 1: pill → circle (140ms), centered via transform offset
                 const morphAnim = btn.animate([
-                    { transform: 'translate(0px, 0px)', width: `${rect.width}px`, height: `${rect.height}px`, borderRadius: '0.4rem' },
-                    { transform: `translate(${shiftX}px, ${shiftY}px)`, width: `${circleSize}px`, height: `${circleSize}px`, borderRadius: '50%' }
-                ], { duration: 220, easing: 'ease-in-out', fill: 'forwards' });
+                    { transform: 'translate(0px, 0px)', width: `${rect.width}px`, height: `${rect.height}px`, borderRadius: '0.4rem', opacity: 1 },
+                    { transform: `translate(${shiftX}px, ${shiftY}px)`, width: `${circleSize}px`, height: `${circleSize}px`, borderRadius: '50%', opacity: 1 }
+                ], { duration: 140, easing: 'ease-in-out', fill: 'forwards' });
 
-                // Phase 2: small curly loop, then fly to upper-right (composited on morph)
-                const lx = 50, ly = 44;
+                // Phase 2: loop high up + shrink to 50%, then fly to upper-right (composited on morph)
+                // scale() shrinks from element center; composite:'add' concatenates with morph's translate
+                const lx = 55, ly = 72;
                 const btnCX = rect.left + rect.width / 2;
                 const btnCY = rect.top + rect.height / 2;
                 const endX = window.innerWidth - btnCX + 40;
@@ -914,19 +916,20 @@
                 let flyAnim;
                 morphAnim.finished.then(() => {
                     flyAnim = btn.animate([
-                        { offset: 0,    transform: 'translate(0px, 0px)',                           easing: 'ease-in-out' },
-                        { offset: 0.15, transform: `translate(${lx * 0.5}px, ${-ly}px)`,           easing: 'ease-in-out' },
-                        { offset: 0.32, transform: `translate(${lx}px, 0px)`,                      easing: 'ease-in-out' },
-                        { offset: 0.48, transform: `translate(${lx * 0.5}px, ${ly * 0.65}px)`,    easing: 'ease-in-out' },
-                        { offset: 0.60, transform: `translate(${-lx * 0.1}px, ${ly * 0.2}px)`,    easing: 'ease-in-out' },
-                        { offset: 0.70, transform: `translate(${-lx * 0.2}px, ${-ly * 0.4}px)`,   easing: 'cubic-bezier(0.15, 0, 0.0, 1)' },
-                        { offset: 1,    transform: `translate(${endX}px, ${endY}px)` }
-                    ], { duration: 600, fill: 'forwards', composite: 'add' });
+                        { offset: 0,    transform: 'translate(0px, 0px) scale(1)',                                    easing: 'ease-in' },
+                        { offset: 0.12, transform: `translate(${lx * 0.2}px, ${-ly * 0.9}px) scale(0.82)`,          easing: 'ease-in-out' },
+                        { offset: 0.26, transform: `translate(${lx * 0.9}px, ${-ly * 1.5}px) scale(0.68)`,          easing: 'ease-in-out' },
+                        { offset: 0.40, transform: `translate(${lx * 1.3}px, ${-ly * 0.9}px) scale(0.60)`,          easing: 'ease-in-out' },
+                        { offset: 0.54, transform: `translate(${lx * 0.6}px, ${-ly * 0.45}px) scale(0.55)`,         easing: 'ease-in-out' },
+                        { offset: 0.64, transform: `translate(${-lx * 0.05}px, ${-ly * 0.9}px) scale(0.52)`,        easing: 'ease-in-out' },
+                        { offset: 0.74, transform: `translate(${lx * 0.25}px, ${-ly * 1.55}px) scale(0.5)`,         easing: 'cubic-bezier(0.15, 0, 0.0, 1)' },
+                        { offset: 1,    transform: `translate(${endX}px, ${endY}px) scale(0.5)` }
+                    ], { duration: 680, fill: 'forwards', composite: 'add' });
                 }).catch(() => {});
 
                 return {
                     land() {
-                        setTimeout(() => { btn.remove(); ph.remove(); }, 870);
+                        setTimeout(() => { btn.remove(); ph.remove(); }, 860);
                     },
                     crash() {
                         if (flyAnim) flyAnim.cancel();
