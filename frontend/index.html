@@ -1010,9 +1010,7 @@
             const slotCache = {};
 
             function firstBookable() {
-                const d = new Date(today);
-                d.setDate(d.getDate() + 1);
-                return isWorkday(d) ? d : stepWorkday(d, true);
+                return isWorkday(today) ? new Date(today) : stepWorkday(today, true);
             }
             function lastBookable() {
                 const d = new Date(today);
@@ -1022,7 +1020,7 @@
             function isBookable(date) {
                 const d = startOfDay(date);
                 const diff = Math.round((d - today) / 86400000);
-                if (diff < 1 || diff > 14 || !isWorkday(d)) return false;
+                if (diff < 0 || diff > 14 || !isWorkday(d)) return false;
                 const cached = slotCache[formatDateISO(d)];
                 return cached === undefined || (Array.isArray(cached) && cached.length > 0);
             }
@@ -1126,11 +1124,11 @@
 
             function prefetchAllSlots() {
                 const d = new Date(today);
-                for (let i = 1; i <= 14; i++) {
-                    d.setDate(d.getDate() + 1);
+                for (let i = 0; i <= 14; i++) {
                     if (isWorkday(d)) {
                         fetchSlots(new Date(d)).then(() => renderCalendar());
                     }
+                    d.setDate(d.getDate() + 1);
                 }
             }
 
@@ -1234,7 +1232,7 @@
                 } else {
                     pairRight = pairLeft;
                     pairLeft = stepWorkday(pairLeft, false);
-                    if (Math.round((pairLeft - today) / 86400000) < 1)
+                    if (Math.round((pairLeft - today) / 86400000) < 0)
                         pairLeft = firstBookable();
                 }
                 renderCalendar();
