@@ -18,3 +18,7 @@ JAAS_KEY_ID = "98c2cb"
 [[routes]]
 pattern = "book.ecke.lt/api/*"
 zone_name = "ecke.lt"
+
+[[routes]]
+pattern = "join.ecke.lt/*"
+zone_name = "ecke.lt"

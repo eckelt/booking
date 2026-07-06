@@ -77,7 +77,7 @@ export async function createBooking(
   if (!slotAvailable) throw new SlotUnavailableError();
 
   const uid = generateUid();
-  const jitsiUrl = `https://book.ecke.lt/api/join?uid=${uid}`;
+  const jitsiUrl = `https://join.ecke.lt/${uid}`;
 
   const ical = buildIcal({
     uid,

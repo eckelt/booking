@@ -66,7 +66,10 @@ export default {
         return await handleCancel(url, request, env);
       }
       if (url.pathname === "/api/join" && request.method === "GET") {
-        return await handleJoin(url, env);
+        return await handleJoin(url.searchParams.get("uid"), env);
+      }
+      if (url.hostname === "join.ecke.lt" && request.method === "GET") {
+        return await handleJoin(url.pathname.slice(1), env);
       }
       return json({ error: "not found" }, 404);
     } catch (err) {
@@ -93,8 +96,8 @@ async function checkRateLimit(
   return true;
 }
 
-async function handleJoin(url: URL, env: Env): Promise<Response> {
-  const uid = url.searchParams.get("uid")?.trim();
+async function handleJoin(rawUid: string | null, env: Env): Promise<Response> {
+  const uid = rawUid?.trim();
   if (!uid || !/^[\w-]+$/.test(uid)) {
     return page(
       "Ungültiger Link",
