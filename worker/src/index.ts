@@ -66,10 +66,10 @@ export default {
         return await handleCancel(url, request, env);
       }
       if (url.pathname === "/api/join" && request.method === "GET") {
-        return await handleJoin(url.searchParams.get("uid"), env);
+        return await handleJoin(url.searchParams.get("uid"), url, env);
       }
       if (url.hostname === "join.ecke.lt" && request.method === "GET") {
-        return await handleJoin(url.pathname.slice(1), env);
+        return await handleJoin(url.pathname.slice(1), url, env);
       }
       return json({ error: "not found" }, 404);
     } catch (err) {
@@ -96,7 +96,14 @@ async function checkRateLimit(
   return true;
 }
 
-async function handleJoin(rawUid: string | null, env: Env): Promise<Response> {
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return result === 0;
+}
+
+async function handleJoin(rawUid: string | null, url: URL, env: Env): Promise<Response> {
   const uid = rawUid?.trim();
   if (!uid || !/^[\w-]+$/.test(uid)) {
     return page(
@@ -106,11 +113,15 @@ async function handleJoin(rawUid: string | null, env: Env): Promise<Response> {
       400
     );
   }
+  const hostSecret = url.searchParams.get("host");
+  const isHost = !!hostSecret && !!env.HOST_JOIN_SECRET && timingSafeEqual(hostSecret, env.HOST_JOIN_SECRET);
+
   const now = new Date();
   const expires = new Date(now.getTime() + 2 * 60 * 60 * 1000);
   const jaasUrl = await generateJitsiUrl(
     uid, now, expires,
-    env.JAAS_APP_ID, env.JAAS_KEY_ID, env.JAAS_PRIVATE_KEY
+    env.JAAS_APP_ID, env.JAAS_KEY_ID, env.JAAS_PRIVATE_KEY,
+    isHost ? { name: env.OWNER_NAME, email: env.OWNER_EMAIL } : null
   );
   return Response.redirect(jaasUrl, 302);
 }

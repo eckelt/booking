@@ -10,6 +10,7 @@ export interface Env {
   JAAS_APP_ID: string;
   JAAS_KEY_ID: string;
   JAAS_PRIVATE_KEY: string;
+  HOST_JOIN_SECRET?: string;
   RATE_LIMIT?: KVNamespace;
 }
 

@@ -2,15 +2,21 @@ export function generateUid(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 10);
 }
 
+export interface ModeratorInfo {
+  name: string;
+  email: string;
+}
+
 export async function generateJitsiUrl(
   uid: string,
   start: Date,
   end: Date,
   appId: string,
   keyId: string,
-  privateKeyPem: string
+  privateKeyPem: string,
+  moderator: ModeratorInfo | null = null
 ): Promise<string> {
-  const token = await signJaasJwt(uid, start, end, appId, keyId, privateKeyPem);
+  const token = await signJaasJwt(uid, start, end, appId, keyId, privateKeyPem, moderator);
   return `https://8x8.vc/${appId}/${uid}?jwt=${token}`;
 }
 
@@ -20,7 +26,8 @@ async function signJaasJwt(
   end: Date,
   appId: string,
   keyId: string,
-  privateKeyPem: string
+  privateKeyPem: string,
+  moderator: ModeratorInfo | null
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const nbf = Math.floor(start.getTime() / 1000) - 15 * 60;
@@ -36,12 +43,9 @@ async function signJaasJwt(
     room,
     sub: appId,
     context: {
-      user: {
-        id: "guest",
-        name: "Guest",
-        email: "",
-        moderator: false,
-      },
+      user: moderator
+        ? { id: "owner", name: moderator.name, email: moderator.email, moderator: true }
+        : { id: "guest", name: "Guest", email: "", moderator: false },
       features: {
         recording: false,
         livestreaming: false,
