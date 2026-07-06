@@ -28,6 +28,7 @@ async function signJaasJwt(
 
   const header = { alg: "RS256", typ: "JWT", kid: `${appId}/${keyId}` };
   const payload = {
+    aud: "jitsi",
     iss: "chat",
     iat: now,
     exp,

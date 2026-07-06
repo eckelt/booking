@@ -46,4 +46,16 @@ describe("generateJitsiUrl", () => {
     const jwt = url.split("?jwt=")[1];
     expect(jwt.split(".")).toHaveLength(3);
   });
+
+  it("JWT payload has aud set to jitsi", async () => {
+    const uid = "4dc3a700cf";
+    const start = new Date("2026-07-01T10:00:00Z");
+    const end = new Date("2026-07-01T10:30:00Z");
+    const url = await generateJitsiUrl(uid, start, end, APP_ID, KEY_ID, FAKE_PEM);
+    const jwt = url.split("?jwt=")[1];
+    const payload = JSON.parse(
+      Buffer.from(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()
+    );
+    expect(payload.aud).toBe("jitsi");
+  });
 });
