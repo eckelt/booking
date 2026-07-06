@@ -82,7 +82,8 @@ DTSTAMP:{now}Z
 DTSTART;TZID=Europe/Berlin:{dtStart}
 DTEND;TZID=Europe/Berlin:{dtEnd}
 SUMMARY:Meeting with {name}
-DESCRIPTION:Booked via book.ecke.lt\nNotes: {notes}\nJitsi: {jitsiUrl}
+LOCATION:{jitsiUrl}
+DESCRIPTION:Notes: {notes}\nName: {name}\nEmail: {bookerEmail}\nBooked via book.ecke.lt
 ORGANIZER;CN=Nils Eckelt:mailto:{OWNER_EMAIL}
 ATTENDEE;CN={name}:mailto:{bookerEmail}
 X-JITSI-URL:{jitsiUrl}
@@ -91,6 +92,8 @@ END:VCALENDAR
 ```
 
 Datetime format: `YYYYMMDDTHHmmss` (local, with TZID) or `YYYYMMDDTHHmmssZ` (UTC for DTSTAMP).
+
+The `{jitsiUrl}` in `LOCATION`/`X-JITSI-URL` differs by recipient: the copy written to the owner's own CalDAV calendars (`putEvent`) carries `?host={HOST_JOIN_SECRET}` so the owner joins as moderator; the copy attached to the booker's confirmation email uses the plain link. Both are built from the same `buildIcal()` call with a different `jitsiUrl` value — the owner's copy is never sent externally.
 
 ### Request
 

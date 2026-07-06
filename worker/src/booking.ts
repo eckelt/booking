@@ -78,8 +78,33 @@ export async function createBooking(
 
   const uid = generateUid();
   const jitsiUrl = `https://join.ecke.lt/${uid}`;
+  const ownerJitsiUrl = env.HOST_JOIN_SECRET
+    ? `${jitsiUrl}?host=${env.HOST_JOIN_SECRET}`
+    : jitsiUrl;
 
-  const ical = buildIcal({
+  const icalForOwner = buildIcal({
+    uid,
+    start,
+    end,
+    name: req.name,
+    notes: req.notes ?? "",
+    jitsiUrl: ownerJitsiUrl,
+    ownerEmail: env.OWNER_EMAIL,
+    ownerName: env.OWNER_NAME,
+    bookerEmail: req.email,
+  });
+
+  await putEvent(env, uid, icalForOwner, fetcher);
+
+  if (req.rescheduleUid) {
+    await deleteEvent(env, req.rescheduleUid, fetcher).catch((err) =>
+      console.error(`[reschedule] failed to delete old event uid=${req.rescheduleUid} error=${err?.message ?? err}`)
+    );
+  }
+
+  // Email is best-effort — a failure must not roll back the booking
+  const durationPath = req.duration === 60 ? "60min" : "30min";
+  const icalForBooker = buildIcal({
     uid,
     start,
     end,
@@ -90,17 +115,6 @@ export async function createBooking(
     ownerName: env.OWNER_NAME,
     bookerEmail: req.email,
   });
-
-  await putEvent(env, uid, ical, fetcher);
-
-  if (req.rescheduleUid) {
-    await deleteEvent(env, req.rescheduleUid, fetcher).catch((err) =>
-      console.error(`[reschedule] failed to delete old event uid=${req.rescheduleUid} error=${err?.message ?? err}`)
-    );
-  }
-
-  // Email is best-effort — a failure must not roll back the booking
-  const durationPath = req.duration === 60 ? "60min" : "30min";
   ctx.waitUntil(
     sendEmails(env, {
       uid,
@@ -110,7 +124,7 @@ export async function createBooking(
       bookerEmail: req.email,
       notes: req.notes ?? "",
       jitsiUrl,
-      icalAttachment: ical,
+      icalAttachment: icalForBooker,
       cancelUrl: `https://book.ecke.lt/api/cancel?uid=${uid}`,
       rescheduleUrl: `https://book.ecke.lt/${durationPath}/?reschedule=${uid}&name=${encodeURIComponent(req.name)}&email=${encodeURIComponent(req.email)}`,
     }).catch((err) => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`))
