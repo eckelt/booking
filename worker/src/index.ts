@@ -113,8 +113,9 @@ async function handleJoin(rawUid: string | null, url: URL, env: Env): Promise<Re
       400
     );
   }
-  const hostSecret = url.searchParams.get("host");
-  const isHost = !!hostSecret && !!env.HOST_JOIN_SECRET && timingSafeEqual(hostSecret, env.HOST_JOIN_SECRET);
+  const hostSecret = url.searchParams.get("host")?.trim();
+  const expectedSecret = env.HOST_JOIN_SECRET?.trim();
+  const isHost = !!hostSecret && !!expectedSecret && timingSafeEqual(hostSecret, expectedSecret);
 
   const now = new Date();
   const expires = new Date(now.getTime() + 2 * 60 * 60 * 1000);
