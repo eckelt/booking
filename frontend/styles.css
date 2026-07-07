@@ -1,0 +1,12 @@
+/* =============================================================
+   ecke.lt — Design System entry point
+   Consumers link THIS file only. It is an @import manifest;
+   never add rules here directly.
+
+   Palette: warm stone (light) + Monokai Pro (dark).
+   Type: Bricolage Grotesque (display) + DM Sans (body).
+   ============================================================= */
+@import "./tokens/fonts.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";

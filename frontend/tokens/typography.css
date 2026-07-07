@@ -1,0 +1,50 @@
+/* =============================================================
+   ecke.lt — Typography tokens
+   Bricolage Grotesque (display) + DM Sans (body/UI).
+   Base ramp mirrors the live sites: 17px root, tight display
+   tracking, uppercase micro-labels.
+   ============================================================= */
+:root {
+  /* families */
+  --font-heading: "Bricolage Grotesque", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* semantic aliases */
+  --font-display: var(--font-heading);
+  --font-ui: var(--font-body);
+
+  /* root size (live sites use 17px) */
+  --font-root: 17px;
+
+  /* type scale (rem, relative to 17px root) */
+  --text-name: clamp(3rem, 8vw, 5.5rem); /* hero name, weight 800 */
+  --text-h2: 1.7rem;    /* prose h2 */
+  --text-h3: 1.3rem;    /* prose h3 */
+  --text-h4: 1.1rem;    /* prose h4 */
+  --text-lead: 1.15rem; /* profile lead paragraph */
+  --text-body: 1rem;
+  --text-prose: 1.05rem;
+  --text-sm: 0.9rem;
+  --text-xs: 0.82rem;
+  --text-label: 0.72rem; /* uppercase micro-label */
+
+  /* weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;
+
+  /* line heights */
+  --leading-tight: 1.1;
+  --leading-heading: 1.2;
+  --leading-snug: 1.35;
+  --leading-body: 1.75;
+  --leading-prose: 1.8;
+
+  /* letter spacing */
+  --tracking-display: -0.03em; /* hero name */
+  --tracking-tight: -0.02em;   /* prose headings */
+  --tracking-label: 0.1em;     /* uppercase labels */
+}
