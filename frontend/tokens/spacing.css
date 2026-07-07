@@ -1,0 +1,41 @@
+/* =============================================================
+   ecke.lt — Spacing, layout, radii, motion tokens
+   ============================================================= */
+:root {
+  /* layout */
+  --max: 720px;         /* long-form content column */
+  --max-wide: 900px;    /* booking / app column */
+
+  /* spacing scale (rem) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 5rem;
+
+  /* radii */
+  --radius-sm: 0.3rem;   /* buttons */
+  --radius-md: 0.4rem;   /* nav / small controls */
+  --radius-lg: 0.5rem;   /* inputs, images */
+  --radius-xl: 1rem;     /* cards, panels */
+  --radius-pill: 999px;  /* badges, filter chips, slots */
+
+  /* borders */
+  --border-hairline: 1px solid var(--rule);
+
+  /* elevation — the brand is near-flat; shadow only for focus rings
+     and the one hover glow on booking cards */
+  --ring-focus: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  --shadow-card-hover: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+
+  /* motion */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --ease-out-back: cubic-bezier(0.175, 0.885, 0.32, 1.275); /* @kind other */
+  --dur-fast: 0.15s; /* @kind other */
+  --dur-base: 0.2s; /* @kind other */
+  --dur-slow: 0.3s; /* @kind other */
+  --dur-fade-in: 0.8s; /* @kind other */ /* body fade-in on the live sites */
+}

@@ -14,31 +14,9 @@
         <meta property="og:description" content="Pick a date and time for a call with Nils Eckelt." />
         <meta property="og:image" content="https://book.ecke.lt/apple-touch-icon.png" />
         <meta name="twitter:card" content="summary" />
+        <!-- ecke.lt design system — tokens (colors, type, spacing) + self-hosted fonts -->
+        <link rel="stylesheet" href="/styles.css" />
         <style>
-            :root {
-                --bg: #fafaf9;
-                --surface: #fff;
-                --text: #2c292d;
-                --muted: #736e73;
-                --border: #e5e5e5;
-                --primary: #006e8a;
-                --primary-hover: #005570;
-                --on-primary: #fff;
-                --danger: #b01040;
-            }
-            @media (prefers-color-scheme: dark) {
-                :root {
-                    --bg: #19181a;
-                    --surface: #2d2a2e;
-                    --text: #fcfcfa;
-                    --muted: #848085;
-                    --border: #403e41;
-                    --primary: #78dce8;
-                    --primary-hover: #60cfe2;
-                    --on-primary: #19181a;
-                    --danger: #ff6188;
-                }
-            }
             *,
             *::before,
             *::after {
@@ -47,8 +25,7 @@
                 padding: 0;
             }
             body {
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                font-family: var(--font-body);
                 background: var(--bg);
                 color: var(--text);
                 min-height: 100vh;
@@ -79,6 +56,8 @@
                 font-weight: 600;
                 flex: 1;
                 min-width: 0;
+                font-family: var(--font-heading);
+                letter-spacing: -0.01em;
             }
             .skip-link {
                 position: absolute;
@@ -555,6 +534,7 @@
             .success-box h2 {
                 font-size: 1.3rem;
                 margin-bottom: 0.5rem;
+                font-family: var(--font-heading);
             }
             .success-box p {
                 color: var(--muted);
