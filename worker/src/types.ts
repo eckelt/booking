@@ -5,6 +5,12 @@ export interface Env {
   CALDAV_CALENDAR_OHANA: string;
   OWNER_NAME: string;
   OWNER_EMAIL: string;
+  // Owner's current timezone + waking-hour bounds. Defaults to Europe/Berlin
+  // (9–17), i.e. no extra restriction. Set OWNER_TZ when travelling so slots
+  // never fall outside the owner's own hours.
+  OWNER_TZ?: string;
+  OWNER_MIN_HOUR?: string;
+  OWNER_MAX_HOUR?: string;
   SMTP_USERNAME: string;
   SMTP_PASSWORD: string;
   JAAS_APP_ID: string;

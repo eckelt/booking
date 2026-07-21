@@ -14,16 +14,43 @@ const WORKING_HOURS: (readonly [number, number] | null)[] = [
   null,        // Saturday
 ];
 
-export function workingDayWindow(date: Date): Interval | null {
+// The owner's own local hours. Slots are shown to bookers in Berlin time,
+// but never fall outside [minHour, maxHour] in the owner's current timezone.
+// When `tz` equals the booking timezone this is a no-op.
+export interface OwnerHours {
+  tz: string;
+  minHour: number;
+  maxHour: number;
+}
+
+export function workingDayWindow(date: Date, owner?: OwnerHours): Interval | null {
   const dow = getLocalDay(date, TZ);
   const hours = WORKING_HOURS[dow];
   if (!hours) return null;
 
   const [startH, endH] = hours;
-  return {
+  const window: Interval = {
     start: localHour(date, startH, TZ),
     end: localHour(date, endH, TZ),
   };
+
+  if (owner && owner.tz !== TZ) {
+    return clampToOwnerHours(window, owner);
+  }
+  return window;
+}
+
+// Narrow the Berlin working window so it stays within the owner's own
+// waking hours. Being ahead of Berlin (e.g. Thailand) trims the evening;
+// being behind (e.g. the US) trims the morning. Returns null if nothing
+// survives — that day then offers no slots.
+function clampToOwnerHours(window: Interval, owner: OwnerHours): Interval | null {
+  const lower = localHour(window.start, owner.minHour, owner.tz);
+  const upper = localHour(window.start, owner.maxHour, owner.tz);
+  const start = new Date(Math.max(window.start.getTime(), lower.getTime()));
+  const end = new Date(Math.min(window.end.getTime(), upper.getTime()));
+  if (start.getTime() >= end.getTime()) return null;
+  return { start, end };
 }
 
 export function applyBuffer(intervals: Interval[], bufferMs = BUFFER_MS): Interval[] {

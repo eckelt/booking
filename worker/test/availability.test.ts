@@ -44,6 +44,40 @@ describe("workingDayWindow", () => {
   });
 });
 
+describe("workingDayWindow — owner timezone clamp", () => {
+  // June → Berlin is UTC+2, Bangkok UTC+7, New York EDT (UTC-4).
+  const BANGKOK = { tz: "Asia/Bangkok", minHour: 9, maxHour: 17 };
+  const NEW_YORK = { tz: "America/New_York", minHour: 9, maxHour: 17 };
+
+  it("trims the evening when the owner is ahead (Bangkok)", () => {
+    // Monday Berlin 09–17 = Bangkok 14–22. maxHour 17 Bangkok = 10:00 UTC.
+    const w = workingDayWindow(MON, BANGKOK)!;
+    expect(w).not.toBeNull();
+    expect(w.start.getUTCHours()).toBe(7);  // 09:00 Berlin, morning untouched
+    expect(w.end.getUTCHours()).toBe(10);   // 17:00 Bangkok = 10:00 UTC (was 15:00)
+  });
+
+  it("trims the morning when the owner is behind (New York)", () => {
+    // Monday Berlin 09–17 = New York 03–11. minHour 9 NY = 13:00 UTC.
+    const w = workingDayWindow(MON, NEW_YORK)!;
+    expect(w).not.toBeNull();
+    expect(w.start.getUTCHours()).toBe(13); // 09:00 NY = 13:00 UTC (was 07:00)
+    expect(w.end.getUTCHours()).toBe(15);   // 17:00 Berlin, evening untouched
+  });
+
+  it("is a no-op when owner tz equals the booking tz", () => {
+    const w = workingDayWindow(MON, { tz: "Europe/Berlin", minHour: 9, maxHour: 17 })!;
+    expect(w.start.getUTCHours()).toBe(7);
+    expect(w.end.getUTCHours()).toBe(15);
+  });
+
+  it("drops the day entirely when no owner hours overlap", () => {
+    // maxHour 12 Bangkok = 05:00 UTC, before the 07:00 UTC window start.
+    const w = workingDayWindow(MON, { tz: "Asia/Bangkok", minHour: 9, maxHour: 12 });
+    expect(w).toBeNull();
+  });
+});
+
 describe("applyBuffer", () => {
   it("expands each interval by buffer on both sides", () => {
     const iv: Interval = { start: D("2026-06-08T10:00:00Z"), end: D("2026-06-08T10:30:00Z") };

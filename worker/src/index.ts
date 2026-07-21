@@ -146,13 +146,19 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
     return json({ error: "to exceeds 14-day limit" }, 400);
   }
 
+  const ownerHours = {
+    tz: env.OWNER_TZ || "Europe/Berlin",
+    minHour: parseHour(env.OWNER_MIN_HOUR, 9),
+    maxHour: parseHour(env.OWNER_MAX_HOUR, 17),
+  };
+
   const slots = [];
   const cursor = new Date(from);
   cursor.setHours(0, 0, 0, 0);
 
   try {
     while (cursor <= to) {
-      const window = workingDayWindow(cursor);
+      const window = workingDayWindow(cursor, ownerHours);
       if (window) {
         const windowStart = cursor.getTime() === from.getTime() && from > window.start
           ? from
@@ -256,6 +262,11 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
+}
+
+function parseHour(raw: string | undefined, fallback: number): number {
+  const n = raw ? parseInt(raw, 10) : NaN;
+  return Number.isInteger(n) && n >= 0 && n <= 24 ? n : fallback;
 }
 
 function toLocalIso(d: Date): string {

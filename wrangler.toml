@@ -11,6 +11,14 @@ CALDAV_CALENDAR_NILS = "bd0ce304-f055-4524-9273-80a7d8cee9f1"
 CALDAV_CALENDAR_OHANA = "0C692FAB-66C9-454F-B51D-D076560588DB"
 JAAS_APP_ID = "vpaas-magic-cookie-844afece898c44fe995febd212d45364"
 JAAS_KEY_ID = "98c2cb"
+# Owner timezone guard: when travelling, set OWNER_TZ to your current IANA zone
+# (e.g. "Asia/Bangkok", "America/New_York"). Slots stay in Berlin time for the
+# booker but never fall outside your own OWNER_MIN_HOUR–OWNER_MAX_HOUR (24h,
+# defaults 9–17). Ahead of Berlin trims your evening; behind trims your morning.
+# Change it here + `wrangler deploy`, or edit the var in the Cloudflare UI.
+OWNER_TZ = "Europe/Berlin"
+OWNER_MIN_HOUR = "9"
+OWNER_MAX_HOUR = "17"
 # JAAS_PRIVATE_KEY: stored as Cloudflare Worker secret
 # To re-enable rate limiting: run `wrangler kv namespace create RATE_LIMIT`,
 # then add: [[kv_namespaces]] / binding = "RATE_LIMIT" / id = "<id from above>"
