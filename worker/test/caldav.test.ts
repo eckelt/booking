@@ -74,6 +74,30 @@ describe("parseMultiStatusIntervals", () => {
     expect(intervals[0]!.end).toEqual(new Date("2026-06-08T09:00:00Z"));
   });
 
+  it("parses several expanded occurrences in one calendar-data block", () => {
+    // A weekly recurring blocker, expanded server-side into two occurrences
+    const ical =
+      `BEGIN:VCALENDAR\r\n` +
+      `BEGIN:VEVENT\r\nDTSTART:20260610T110000Z\r\nDTEND:20260610T150000Z\r\nRECURRENCE-ID:20260610T110000Z\r\nEND:VEVENT\r\n` +
+      `BEGIN:VEVENT\r\nDTSTART:20260617T110000Z\r\nDTEND:20260617T150000Z\r\nRECURRENCE-ID:20260617T110000Z\r\nEND:VEVENT\r\n` +
+      `END:VCALENDAR`;
+    const intervals = parseMultiStatusIntervals(makeMultiStatus(ical));
+    expect(intervals).toHaveLength(2);
+    expect(intervals[0]!.start).toEqual(new Date("2026-06-10T11:00:00Z"));
+    expect(intervals[1]!.start).toEqual(new Date("2026-06-17T11:00:00Z"));
+  });
+
+  it("skips only the TRANSPARENT occurrence, keeping busy siblings", () => {
+    const ical =
+      `BEGIN:VCALENDAR\r\n` +
+      `BEGIN:VEVENT\r\nDTSTART:20260610T110000Z\r\nDTEND:20260610T150000Z\r\nTRANSP:TRANSPARENT\r\nEND:VEVENT\r\n` +
+      `BEGIN:VEVENT\r\nDTSTART:20260617T110000Z\r\nDTEND:20260617T150000Z\r\nEND:VEVENT\r\n` +
+      `END:VCALENDAR`;
+    const intervals = parseMultiStatusIntervals(makeMultiStatus(ical));
+    expect(intervals).toHaveLength(1);
+    expect(intervals[0]!.start).toEqual(new Date("2026-06-17T11:00:00Z"));
+  });
+
   it("does not re-offer a slot booked with TZID", () => {
     // Booking at 09:00 Berlin (= 07:00 UTC) should block the 09:00 Berlin slot
     const ical = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;TZID=Europe/Berlin:20260609T090000\r\nDTEND;TZID=Europe/Berlin:20260609T093000\r\nEND:VEVENT\r\nEND:VCALENDAR`;
@@ -102,6 +126,24 @@ describe("fetchBusy", () => {
     expect(url).toContain("Nils");
     expect((options.headers as Record<string, string>)["Authorization"]).toMatch(/^Basic /);
     expect(options.method).toBe("REPORT");
+  });
+
+  it("requests server-side recurrence expansion for the range", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response("<multistatus></multistatus>", { status: 207 })
+    );
+    await fetchBusy(
+      mockEnv,
+      "Nils",
+      new Date("2026-06-08T00:00:00Z"),
+      new Date("2026-06-22T00:00:00Z"),
+      mockFetch
+    );
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const body = options.body as string;
+    expect(body).toContain("<c:expand");
+    expect(body).toContain('start="20260608T000000Z"');
+    expect(body).toContain('end="20260622T000000Z"');
   });
 
   it("throws on non-207 response", async () => {

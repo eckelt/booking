@@ -27,11 +27,11 @@ describe("workingDayWindow", () => {
     expect(w!.end.getUTCHours()).toBe(15);  // 17:00 Berlin = 15:00 UTC in summer
   });
 
-  it("returns 9-13 for Wednesday", () => {
+  it("returns 9-17 for Wednesday", () => {
     const w = workingDayWindow(WED);
     expect(w).not.toBeNull();
     const durationMs = w!.end.getTime() - w!.start.getTime();
-    expect(durationMs).toBe(MS(4 * 60)); // 4 hours
+    expect(durationMs).toBe(MS(8 * 60)); // 8 hours
   });
 
   it("returns null for Saturday", () => {
@@ -200,11 +200,11 @@ describe("computeSlots — integration", () => {
     expect(slots[0]!.start.getTime()).toBe(new Date(w.start.getTime() + MS(35)).getTime());
   });
 
-  it("Wednesday short day: last 30-min slot starts at 12:30", () => {
+  it("Wednesday full day: last 30-min slot ends at 17:00", () => {
     const w = workingDayWindow(WED)!;
     const slots = computeSlots([], w.start, w.end, MS(30));
     const last = slots[slots.length - 1]!;
-    // 09:00 + 3.5h = 12:30 start, 13:00 end
+    // 09:00–17:00 = 16 slots, last ends at 17:00
     expect(last.end.getTime()).toBe(w.end.getTime());
   });
 
@@ -227,12 +227,12 @@ describe("computeSlots — integration", () => {
     expect(computeSlots([busy], w.start, w.end, MS(30))).toHaveLength(0);
   });
 
-  it("60-min slot on Wednesday: last slot starts 12:00", () => {
+  it("60-min slot on Wednesday: last slot starts 16:00", () => {
     const w = workingDayWindow(WED)!;
     const slots = computeSlots([], w.start, w.end, MS(60));
     const last = slots[slots.length - 1]!;
     expect(last.end.getTime()).toBe(w.end.getTime());
     const startMin = (last.start.getTime() - w.start.getTime()) / MS(1);
-    expect(startMin).toBe(180); // 3h after 09:00 = 12:00
+    expect(startMin).toBe(420); // 7h after 09:00 = 16:00
   });
 });

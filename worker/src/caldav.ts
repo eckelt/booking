@@ -147,6 +147,7 @@ function buildReportXml(start: Date, end: Date): string {
           <c:prop name="TRANSP"/>
         </c:comp>
       </c:comp>
+      <c:expand start="${toCalDavDate(start)}" end="${toCalDavDate(end)}"/>
     </c:calendar-data>
   </d:prop>
   <c:filter>
@@ -165,10 +166,22 @@ export function parseMultiStatusIntervals(xml: string): Interval[] {
   let match;
   while ((match = calDataPattern.exec(xml)) !== null) {
     const ical = match[1] ?? "";
-    const interval = parseVevent(ical);
-    if (interval) intervals.push(interval);
+    // One calendar-data block can hold several VEVENTs: a recurring event
+    // expanded server-side (via <C:expand>) returns one VEVENT per occurrence.
+    for (const vevent of splitVevents(ical)) {
+      const interval = parseVevent(vevent);
+      if (interval) intervals.push(interval);
+    }
   }
   return intervals;
+}
+
+// Split a calendar object into its individual VEVENT components so each is
+// parsed on its own (isolating per-instance STATUS/TRANSP). Falls back to the
+// whole string when no VEVENT delimiters are present.
+function splitVevents(ical: string): string[] {
+  const blocks = ical.match(/BEGIN:VEVENT\r?\n[\s\S]*?END:VEVENT/g);
+  return blocks ?? [ical];
 }
 
 function parseVevent(ical: string): Interval | null {

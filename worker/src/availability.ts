@@ -8,9 +8,9 @@ const WORKING_HOURS: (readonly [number, number] | null)[] = [
   null,        // Sunday
   [9, 17],     // Monday
   [9, 17],     // Tuesday
-  [9, 13],     // Wednesday
+  [9, 17],     // Wednesday
   [9, 17],     // Thursday
-  [9, 13],     // Friday
+  [9, 17],     // Friday
   null,        // Saturday
 ];
 
