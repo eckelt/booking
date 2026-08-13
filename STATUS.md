@@ -6,7 +6,9 @@
 - Slot availability: reads Fastmail CalDAV calendars (Nils + Ohana), respects working hours and 5-minute buffers
 - Booking: creates a VEVENT in the Nils calendar via CalDAV PUT
 - Optimistic concurrency: slot is re-checked immediately before writing
-- Working hours: Mon/Tue/Thu 9–17, Wed/Fri 9–13, max 14 days ahead
+- Working hours: Mon–Fri 9–17, max 14 days ahead. Recurring afternoons that
+  should stay free (e.g. Wed/Fri planning blocks) are held open with calendar
+  events in the Nils calendar rather than hardcoded working hours.
 
 ## What's pending
 
