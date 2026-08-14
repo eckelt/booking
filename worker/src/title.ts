@@ -1,14 +1,9 @@
 import type { Env } from "./types.js";
 
-// Cloudflare Workers AI text model — runs on the same account as the Worker, no
-// external API key. A small, fast model: this call is on the booking hot path,
-// so speed matters more than perfect German (the slug is transliterated in code
-// and the plain fallback covers weak output). The 70B model was accurate but
-// took ~10s per booking. Check the Workers AI model catalog if this is retired.
-const MODEL = "@cf/meta/llama-3.2-3b-instruct";
-// The call runs in parallel with the CalDAV availability fetch; on a genuine
-// timeout the booking still completes with the plain fallback. Sized to cover
-// the JSON-mode attempt plus one plain-mode retry.
+// Anthropic Claude Haiku — fast and reliable at short structured JSON and
+// German. Requires the ANTHROPIC_API_KEY secret; without it (or on any error)
+// bookings fall back to a plain title, so a booking never fails on this.
+const MODEL = "claude-haiku-4-5";
 const TIMEOUT_MS = 8000;
 
 export interface MeetingName {
@@ -25,28 +20,6 @@ const SYSTEM_PROMPT = [
   "alternatives: 3 variants that stay pretty by prepending a positive adjective, each with its own distinct slug. Keep correct German adjective agreement with the noun in the title (der Termin / der Call -> -er ending: \"Heiterer Termin\"; die Besprechung -> -e ending: \"Heitere Besprechung\"). English: a plain positive adjective (\"Warm Meeting with …\"). Examples: \"Aufmerksamer Termin mit …\", \"Heiterer Call mit …\", \"Lebendige Besprechung mit …\".",
 ].join("\n");
 
-// Constrains the model to emit exactly our object (Workers AI JSON mode), so a
-// chatty model can't wander off into prose and force the fallback.
-const RESPONSE_FORMAT = {
-  type: "json_schema",
-  json_schema: {
-    type: "object",
-    properties: {
-      title: { type: "string" },
-      slug: { type: "string" },
-      alternatives: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: { title: { type: "string" }, slug: { type: "string" } },
-          required: ["title", "slug"],
-        },
-      },
-    },
-    required: ["title", "slug"],
-  },
-};
-
 // Turn the booker's name + note into meeting-name candidates via Claude, best
 // first. The caller uses the first whose slug isn't already taken; the extras
 // are pretty adjective variants ("Heiterer Termin mit …") for that rare clash.
@@ -55,12 +28,13 @@ const RESPONSE_FORMAT = {
 export async function generateMeetingNames(
   env: Env,
   input: { name: string; notes: string; lang: "de" | "en" },
+  fetcher: typeof fetch = fetch,
 ): Promise<MeetingName[]> {
   const fallback = fallbackNames(input.name, input.lang);
-  if (!input.notes.trim() || !env.AI) return fallback;
+  if (!input.notes.trim() || !env.ANTHROPIC_API_KEY) return fallback;
 
   try {
-    const raw = await withTimeout(callWorkersAi(env.AI, input), TIMEOUT_MS);
+    const raw = await callClaude(env, input, fetcher);
     const title = String(raw.title ?? "").trim();
     const slug = slugify(String(raw.slug ?? title));
     if (!title || !slug) {
@@ -100,66 +74,44 @@ export function fallbackName(name: string, lang: "de" | "en"): MeetingName {
   return fallbackNames(name, lang)[0]!;
 }
 
-type ModelOutput = { title?: unknown; slug?: unknown; alternatives?: unknown };
-
-async function callWorkersAi(
-  ai: NonNullable<Env["AI"]>,
+async function callClaude(
+  env: Env,
   input: { name: string; notes: string; lang: "de" | "en" },
-): Promise<ModelOutput> {
-  const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
-    {
-      role: "user",
-      content: `Language: ${input.lang}\nBooker: ${input.name}\nNote: ${input.notes}`,
-    },
-  ];
-
-  // First try JSON mode. Some models return an empty {} (or reject the param)
-  // under json_schema — if that yields no title, retry once in plain mode (the
-  // prompt still asks for JSON only, which parseJsonObject then extracts).
-  const first = await runModel(ai, messages, RESPONSE_FORMAT);
-  if (hasTitle(first)) return first;
-
-  console.error("[title] JSON mode gave no title, retrying plain");
-  return runModel(ai, messages, undefined);
-}
-
-async function runModel(
-  ai: NonNullable<Env["AI"]>,
-  messages: { role: string; content: string }[],
-  responseFormat: unknown,
-): Promise<ModelOutput> {
+  fetcher: typeof fetch,
+): Promise<{ title?: unknown; slug?: unknown; alternatives?: unknown }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const options: { messages: typeof messages; max_tokens: number; response_format?: unknown } = {
-      messages,
-      max_tokens: 400,
-    };
-    if (responseFormat) options.response_format = responseFormat;
-    const { response } = await ai.run(MODEL, options);
-    // JSON mode returns an object; a plain text model returns a string.
-    if (response && typeof response === "object") return response as ModelOutput;
-    return parseJsonObject(typeof response === "string" ? response : "");
-  } catch (err) {
-    console.error(`[title] model call failed: ${(err as Error)?.message ?? err}`);
-    return {};
+    const res = await fetcher("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": env.ANTHROPIC_API_KEY!,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 400,
+        system: SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: `Language: ${input.lang}\nBooker: ${input.name}\nNote: ${input.notes}`,
+          },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`anthropic ${res.status}`);
+    const data = (await res.json()) as { content?: { type?: string; text?: string }[] };
+    const text = data.content?.find((b) => b.type === "text")?.text ?? "";
+    return parseJsonObject(text);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-function hasTitle(o: ModelOutput): boolean {
-  return typeof o.title === "string" && o.title.trim().length > 0;
-}
-
-// Resolve to the promise, or reject once the timeout elapses — so a slow model
-// never holds up a booking (the caller falls back on rejection).
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("timeout")), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
-function parseJsonObject(text: string): { title?: unknown; slug?: unknown } {
+function parseJsonObject(text: string): { title?: unknown; slug?: unknown; alternatives?: unknown } {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return {};
   try {

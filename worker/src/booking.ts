@@ -60,13 +60,13 @@ export async function createBooking(
   const durationMs = req.duration * 60 * 1000;
   const end = new Date(start.getTime() + durationMs);
 
-  // Kick off title generation now so its (multi-second) latency overlaps the
-  // CalDAV availability fetch below. generateMeetingNames never rejects.
-  const namesPromise = generateMeetingNames(env, {
-    name: req.name,
-    notes: req.notes ?? "",
-    lang: req.lang ?? "de",
-  });
+  // Kick off title generation now so its latency overlaps the CalDAV
+  // availability fetch below. generateMeetingNames never rejects.
+  const namesPromise = generateMeetingNames(
+    env,
+    { name: req.name, notes: req.notes ?? "", lang: req.lang ?? "de" },
+    fetcher,
+  );
 
   const dayStart = new Date(start);
   dayStart.setHours(0, 0, 0, 0);
