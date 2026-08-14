@@ -86,6 +86,7 @@ export function buildIcal(params: {
   uid: string;
   start: Date;
   end: Date;
+  title: string;
   name: string;
   notes: string;
   jitsiUrl: string;
@@ -119,7 +120,7 @@ export function buildIcal(params: {
     `DTSTAMP:${now}`,
     `DTSTART;TZID=Europe/Berlin:${dtStart}`,
     `DTEND;TZID=Europe/Berlin:${dtEnd}`,
-    `SUMMARY:Meeting with ${params.name}`,
+    `SUMMARY:${escapeIcalText(params.title)}`,
     `LOCATION:${params.jitsiUrl}`,
     `DESCRIPTION:Notes: ${params.notes || "—"}\\nName: ${params.name}\\nEmail: ${params.bookerEmail}\\nBooked via book.ecke.lt`,
     `ORGANIZER;CN=${params.ownerName};SCHEDULE-AGENT=NONE:mailto:${params.ownerEmail}`,
@@ -128,6 +129,16 @@ export function buildIcal(params: {
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
+}
+
+// Escape a value for an iCal TEXT property (RFC 5545): backslash, semicolon,
+// comma, and newlines. Keeps model-generated titles from breaking the VEVENT.
+function escapeIcalText(s: string): string {
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r?\n/g, "\\n");
 }
 
 // ── XML builders / parsers ──

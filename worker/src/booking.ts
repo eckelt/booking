@@ -1,8 +1,10 @@
 import type { BookingRequest, BookingResult, Env, Interval } from "./types.js";
-import { SlotUnavailableError } from "./types.js";
+import { SlotUnavailableError, ConflictError } from "./types.js";
 import { fetchBusy, putEvent, deleteEvent, buildIcal } from "./caldav.js";
 import { sendEmails } from "./email.js";
 import { generateUid } from "./jitsi.js";
+import { generateMeetingNames } from "./title.js";
+import type { MeetingName } from "./title.js";
 import { computeSlots, workingDayWindow } from "./availability.js";
 
 const MAX_DAYS = 14;
@@ -43,7 +45,9 @@ export function validateBookingRequest(body: unknown): BookingRequest {
     throw new Error("invalid rescheduleUid");
   }
 
-  return { start, duration, name, email, notes, rescheduleUid };
+  const lang = b["lang"] === "en" ? "en" : "de";
+
+  return { start, duration, name, email, notes, rescheduleUid, lang };
 }
 
 export async function createBooking(
@@ -76,25 +80,52 @@ export async function createBooking(
   );
   if (!slotAvailable) throw new SlotUnavailableError();
 
-  const uid = generateUid();
-  const jitsiUrl = `https://join.ecke.lt/${uid}`;
-  const ownerJitsiUrl = env.HOST_JOIN_SECRET
-    ? `${jitsiUrl}?host=${env.HOST_JOIN_SECRET}`
-    : jitsiUrl;
-
-  const icalForOwner = buildIcal({
-    uid,
-    start,
-    end,
+  const names = await generateMeetingNames(env, {
     name: req.name,
     notes: req.notes ?? "",
-    jitsiUrl: ownerJitsiUrl,
-    ownerEmail: env.OWNER_EMAIL,
-    ownerName: env.OWNER_NAME,
-    bookerEmail: req.email,
+    lang: req.lang ?? "de",
   });
 
-  await putEvent(env, uid, icalForOwner, fetcher);
+  // Try each pretty candidate (primary, then adjective variants). If every slug
+  // is somehow taken, a short random suffix on the primary is the invisible
+  // last resort so the Jitsi room and CalDAV filename stay unique.
+  const attempts: MeetingName[] = [
+    ...names,
+    { title: names[0]!.title, slug: `${names[0]!.slug}-${generateUid().slice(0, 4)}` },
+  ];
+
+  let uid = "";
+  let title = "";
+  for (let i = 0; i < attempts.length; i++) {
+    const cand = attempts[i]!;
+    const link = `https://join.ecke.lt/${cand.slug}`;
+    const ownerJitsiUrl = env.HOST_JOIN_SECRET
+      ? `${link}?host=${env.HOST_JOIN_SECRET}`
+      : link;
+    const icalForOwner = buildIcal({
+      uid: cand.slug,
+      start,
+      end,
+      title: cand.title,
+      name: req.name,
+      notes: req.notes ?? "",
+      jitsiUrl: ownerJitsiUrl,
+      ownerEmail: env.OWNER_EMAIL,
+      ownerName: env.OWNER_NAME,
+      bookerEmail: req.email,
+    });
+    try {
+      await putEvent(env, cand.slug, icalForOwner, fetcher);
+      uid = cand.slug;
+      title = cand.title;
+      break;
+    } catch (err) {
+      if (err instanceof ConflictError && i < attempts.length - 1) continue;
+      throw err;
+    }
+  }
+
+  const jitsiUrl = `https://join.ecke.lt/${uid}`;
 
   if (req.rescheduleUid) {
     await deleteEvent(env, req.rescheduleUid, fetcher).catch((err) =>
@@ -108,6 +139,7 @@ export async function createBooking(
     uid,
     start,
     end,
+    title,
     name: req.name,
     notes: req.notes ?? "",
     jitsiUrl,

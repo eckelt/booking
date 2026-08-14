@@ -183,6 +183,7 @@ describe("buildIcal", () => {
       uid: "booking-123",
       start: new Date("2026-06-08T07:00:00Z"),
       end: new Date("2026-06-08T07:30:00Z"),
+      title: "Meeting with Jane Doe",
       name: "Jane Doe",
       notes: "Hello",
       jitsiUrl: "https://meet.jit.si/booking-123",
@@ -196,5 +197,21 @@ describe("buildIcal", () => {
     expect(ical).toContain("DTSTART;TZID=Europe/Berlin:");
     expect(ical).toContain("X-JITSI-URL:https://meet.jit.si/booking-123");
     expect(ical).toContain("END:VEVENT");
+  });
+
+  it("escapes commas and semicolons in the title", () => {
+    const ical = buildIcal({
+      uid: "booking-9",
+      start: new Date("2026-06-08T07:00:00Z"),
+      end: new Date("2026-06-08T07:30:00Z"),
+      title: "Termin mit Felix, dem Ketchup-Fan; kurz",
+      name: "Felix",
+      notes: "",
+      jitsiUrl: "https://meet.jit.si/booking-9",
+      ownerEmail: "nils@ecke.lt",
+      ownerName: "Nils Eckelt",
+      bookerEmail: "felix@example.com",
+    });
+    expect(ical).toContain("SUMMARY:Termin mit Felix\\, dem Ketchup-Fan\\; kurz");
   });
 });

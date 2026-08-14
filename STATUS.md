@@ -9,6 +9,14 @@
 - Working hours: Mon–Fri 9–17, max 14 days ahead. Recurring afternoons that
   should stay free (e.g. Wed/Fri planning blocks) are held open with calendar
   events in the Nils calendar rather than hardcoded working hours.
+- Meeting titles + join-link slugs: generated from the booker's name and note
+  via Cloudflare Workers AI (Llama, `[ai]` binding — no external API key), with
+  a plain "Termin mit …" / "Meeting with …" fallback when there's no note, the
+  AI binding is missing, or the call fails/times out. The language comes from
+  the booking form's DE/EN toggle. On a slug collision the write tries pretty
+  adjective variants ("Heiterer Termin mit …") before falling back to an
+  invisible short suffix, so the Jitsi room and CalDAV filename stay unique
+  without ugly links.
 
 ## What's pending
 
@@ -28,6 +36,10 @@
 | `CALDAV_PASSWORD` | Fastmail app password with CalDAV read/write |
 | `SMTP_USERNAME` | Fastmail login — **now obsolete**, can be deleted |
 | `SMTP_PASSWORD` | Fastmail SMTP app password — **now obsolete**, can be deleted |
+
+Meeting-title generation uses **Cloudflare Workers AI** (the `[ai]` binding in
+`wrangler.toml`) — no secret, no external API key. It provisions on
+`wrangler deploy`.
 
 **Non-secret vars** (in `wrangler.toml`):
 | Name | Value |

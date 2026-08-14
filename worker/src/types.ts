@@ -17,7 +17,18 @@ export interface Env {
   JAAS_KEY_ID: string;
   JAAS_PRIVATE_KEY: string;
   HOST_JOIN_SECRET?: string;
+  // Cloudflare Workers AI binding for generating meeting titles. When unbound,
+  // bookings fall back to a plain "Termin mit …" / "Meeting with …" title.
+  AI?: AiBinding;
   RATE_LIMIT?: KVNamespace;
+}
+
+// Minimal shape of the Workers AI binding we use (text generation).
+export interface AiBinding {
+  run(
+    model: string,
+    options: { messages: { role: string; content: string }[]; max_tokens?: number },
+  ): Promise<{ response?: string }>;
 }
 
 export class SlotUnavailableError extends Error {}
@@ -26,4 +37,21 @@ export class ConflictError extends Error {}
 export interface Interval {
   start: Date;
   end: Date;
+}
+
+export interface BookingRequest {
+  start: string;
+  duration: number;
+  name: string;
+  email: string;
+  notes: string;
+  rescheduleUid?: string;
+  lang: "de" | "en";
+}
+
+export interface BookingResult {
+  uid: string;
+  start: string;
+  end: string;
+  jitsiUrl: string;
 }

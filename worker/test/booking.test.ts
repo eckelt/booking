@@ -78,4 +78,21 @@ describe("validateBookingRequest", () => {
     });
     expect(req.notes!.length).toBe(1000);
   });
+
+  it("defaults lang to de and accepts en", () => {
+    const de = validateBookingRequest({
+      start: future, duration: 30, name: "Jane", email: "jane@example.com",
+    });
+    expect(de.lang).toBe("de");
+
+    const en = validateBookingRequest({
+      start: future, duration: 30, name: "Jane", email: "jane@example.com", lang: "en",
+    });
+    expect(en.lang).toBe("en");
+
+    const bogus = validateBookingRequest({
+      start: future, duration: 30, name: "Jane", email: "jane@example.com", lang: "fr",
+    });
+    expect(bogus.lang).toBe("de");
+  });
 });
