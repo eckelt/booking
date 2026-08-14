@@ -1,13 +1,14 @@
 import type { Env } from "./types.js";
 
 // Cloudflare Workers AI text model — runs on the same account as the Worker, no
-// external API key. (The older @cf/meta/llama-3.1-8b-instruct was deprecated on
-// the platform.) Check the Workers AI model catalog if this one is retired too.
-const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-// Generous ceiling: the 70B model can take several seconds. The call runs in
-// parallel with the CalDAV availability fetch, so most of this overlaps; on a
-// genuine timeout the booking still completes with the plain fallback.
-const TIMEOUT_MS = 12000;
+// external API key. A small, fast model: this call is on the booking hot path,
+// so speed matters more than perfect German (the slug is transliterated in code
+// and the plain fallback covers weak output). The 70B model was accurate but
+// took ~10s per booking. Check the Workers AI model catalog if this is retired.
+const MODEL = "@cf/meta/llama-3.2-3b-instruct";
+// The call runs in parallel with the CalDAV availability fetch; on a genuine
+// timeout the booking still completes with the plain fallback.
+const TIMEOUT_MS = 6000;
 
 export interface MeetingName {
   title: string;
