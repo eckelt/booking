@@ -23,6 +23,12 @@ OWNER_MAX_HOUR = "17"
 # To re-enable rate limiting: run `wrangler kv namespace create RATE_LIMIT`,
 # then add: [[kv_namespaces]] / binding = "RATE_LIMIT" / id = "<id from above>"
 
+# Workers AI — powers meeting-title generation (env.AI). No API key needed;
+# runs on this Cloudflare account, within the daily free Neuron allocation for
+# a personal booking page.
+[ai]
+binding = "AI"
+
 [[routes]]
 pattern = "book.ecke.lt/api/*"
 zone_name = "ecke.lt"

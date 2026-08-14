@@ -80,11 +80,11 @@ export async function createBooking(
   );
   if (!slotAvailable) throw new SlotUnavailableError();
 
-  const names = await generateMeetingNames(
-    env,
-    { name: req.name, notes: req.notes ?? "", lang: req.lang ?? "de" },
-    fetcher,
-  );
+  const names = await generateMeetingNames(env, {
+    name: req.name,
+    notes: req.notes ?? "",
+    lang: req.lang ?? "de",
+  });
 
   // Try each pretty candidate (primary, then adjective variants). If every slug
   // is somehow taken, a short random suffix on the primary is the invisible
