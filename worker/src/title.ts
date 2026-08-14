@@ -1,8 +1,9 @@
 import type { Env } from "./types.js";
 
 // Cloudflare Workers AI text model — runs on the same account as the Worker, no
-// external API key. Swap for a larger Llama if German quality needs a boost.
-const MODEL = "@cf/meta/llama-3.1-8b-instruct";
+// external API key. (The older @cf/meta/llama-3.1-8b-instruct was deprecated on
+// the platform.) Check the Workers AI model catalog if this one is retired too.
+const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const TIMEOUT_MS = 5000;
 
 export interface MeetingName {
@@ -98,17 +99,24 @@ async function callWorkersAi(
   ai: NonNullable<Env["AI"]>,
   input: { name: string; notes: string; lang: "de" | "en" },
 ): Promise<{ title?: unknown; slug?: unknown; alternatives?: unknown }> {
-  const result = await ai.run(MODEL, {
-    max_tokens: 400,
-    response_format: RESPONSE_FORMAT,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: `Language: ${input.lang}\nBooker: ${input.name}\nNote: ${input.notes}`,
-      },
-    ],
-  });
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    {
+      role: "user",
+      content: `Language: ${input.lang}\nBooker: ${input.name}\nNote: ${input.notes}`,
+    },
+  ];
+
+  let result: { response?: unknown };
+  try {
+    result = await ai.run(MODEL, { max_tokens: 400, response_format: RESPONSE_FORMAT, messages });
+  } catch (err) {
+    // Some models reject response_format — retry once in plain mode (the prompt
+    // still asks for JSON only, which parseJsonObject then extracts).
+    console.error(`[title] JSON mode rejected, retrying plain: ${(err as Error)?.message ?? err}`);
+    result = await ai.run(MODEL, { max_tokens: 400, messages });
+  }
+
   // JSON mode returns an object; a plain text model returns a string.
   const response = result.response;
   if (response && typeof response === "object") {

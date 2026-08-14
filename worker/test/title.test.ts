@@ -107,6 +107,17 @@ describe("generateMeetingNames", () => {
     });
   });
 
+  it("retries without response_format when the model rejects JSON mode", async () => {
+    const run = vi.fn()
+      .mockRejectedValueOnce(new Error("5028: response_format unsupported"))
+      .mockResolvedValueOnce(aiResponse({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" }));
+    const result = await generateMeetingNames(envWithAi(run), {
+      name: "Nils", notes: "Frühstücken", lang: "de",
+    });
+    expect(result[0]).toEqual({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" });
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
   it("re-slugifies a model slug that still carries umlauts", async () => {
     const run = vi.fn().mockResolvedValue(
       aiResponse({ title: "Björn und Nils", slug: "björn-und-nils" }),
