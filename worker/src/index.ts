@@ -152,40 +152,49 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
     maxHour: parseHour(env.OWNER_MAX_HOUR, 17),
   };
 
+  // One CalDAV query per calendar for the whole [from, to] window, instead of
+  // two per day — a fresh page prefetches ~15 days, so per-day fan-out meant
+  // ~30 Fastmail requests per load (and 429s). computeSlots clamps this shared
+  // busy set to each day's window.
+  const rangeStart = new Date(from);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = new Date(to);
+  rangeEnd.setHours(23, 59, 59, 999);
+
+  let allBusy: Interval[];
+  try {
+    const [nilsBusy, ohanaBusy] = await Promise.all([
+      fetchBusy(env, env.CALDAV_CALENDAR_NILS, rangeStart, rangeEnd),
+      fetchBusy(env, env.CALDAV_CALENDAR_OHANA, rangeStart, rangeEnd),
+    ]);
+    allBusy = [...nilsBusy, ...ohanaBusy];
+  } catch (err) {
+    console.error(err);
+    return json({ error: "calendar unavailable" }, 500);
+  }
+
   const slots = [];
   const cursor = new Date(from);
   cursor.setHours(0, 0, 0, 0);
 
-  try {
-    while (cursor <= to) {
-      const window = workingDayWindow(cursor, ownerHours);
-      if (window) {
-        const windowStart = cursor.getTime() === from.getTime() && from > window.start
-          ? from
-          : window.start;
+  while (cursor <= to) {
+    const window = workingDayWindow(cursor, ownerHours);
+    if (window) {
+      const windowStart = cursor.getTime() === from.getTime() && from > window.start
+        ? from
+        : window.start;
+      const daySlots = computeSlots(allBusy, windowStart, window.end, durationMin * 60 * 1000);
 
-        const [nilsBusy, ohanaBusy] = await Promise.all([
-          fetchBusy(env, env.CALDAV_CALENDAR_NILS, window.start, window.end),
-          fetchBusy(env, env.CALDAV_CALENDAR_OHANA, window.start, window.end),
-        ]);
-
-        const allBusy: Interval[] = [...nilsBusy, ...ohanaBusy];
-        const daySlots = computeSlots(allBusy, windowStart, window.end, durationMin * 60 * 1000);
-
-        for (const slot of daySlots) {
-          if (slot.start >= now) {
-            slots.push({
-              start: toLocalIso(slot.start),
-              end: toLocalIso(slot.end),
-            });
-          }
+      for (const slot of daySlots) {
+        if (slot.start >= now) {
+          slots.push({
+            start: toLocalIso(slot.start),
+            end: toLocalIso(slot.end),
+          });
         }
       }
-      cursor.setDate(cursor.getDate() + 1);
     }
-  } catch (err) {
-    console.error(err);
-    return json({ error: "calendar unavailable" }, 500);
+    cursor.setDate(cursor.getDate() + 1);
   }
 
   return json({ slots });

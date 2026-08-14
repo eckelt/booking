@@ -60,6 +60,14 @@ export async function createBooking(
   const durationMs = req.duration * 60 * 1000;
   const end = new Date(start.getTime() + durationMs);
 
+  // Kick off title generation now so its (multi-second) latency overlaps the
+  // CalDAV availability fetch below. generateMeetingNames never rejects.
+  const namesPromise = generateMeetingNames(env, {
+    name: req.name,
+    notes: req.notes ?? "",
+    lang: req.lang ?? "de",
+  });
+
   const dayStart = new Date(start);
   dayStart.setHours(0, 0, 0, 0);
   const dayEnd = new Date(start);
@@ -80,11 +88,7 @@ export async function createBooking(
   );
   if (!slotAvailable) throw new SlotUnavailableError();
 
-  const names = await generateMeetingNames(env, {
-    name: req.name,
-    notes: req.notes ?? "",
-    lang: req.lang ?? "de",
-  });
+  const names = await namesPromise;
 
   // Try each pretty candidate (primary, then adjective variants). If every slug
   // is somehow taken, a short random suffix on the primary is the invisible
