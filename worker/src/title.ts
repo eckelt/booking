@@ -19,6 +19,28 @@ const SYSTEM_PROMPT = [
   "alternatives: 3 variants that stay pretty by prepending a positive adjective, each with its own distinct slug. Keep correct German adjective agreement with the noun in the title (der Termin / der Call -> -er ending: \"Heiterer Termin\"; die Besprechung -> -e ending: \"Heitere Besprechung\"). English: a plain positive adjective (\"Warm Meeting with …\"). Examples: \"Aufmerksamer Termin mit …\", \"Heiterer Call mit …\", \"Lebendige Besprechung mit …\".",
 ].join("\n");
 
+// Constrains the model to emit exactly our object (Workers AI JSON mode), so a
+// chatty model can't wander off into prose and force the fallback.
+const RESPONSE_FORMAT = {
+  type: "json_schema",
+  json_schema: {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      slug: { type: "string" },
+      alternatives: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { title: { type: "string" }, slug: { type: "string" } },
+          required: ["title", "slug"],
+        },
+      },
+    },
+    required: ["title", "slug"],
+  },
+};
+
 // Turn the booker's name + note into meeting-name candidates via Claude, best
 // first. The caller uses the first whose slug isn't already taken; the extras
 // are pretty adjective variants ("Heiterer Termin mit …") for that rare clash.
@@ -35,7 +57,10 @@ export async function generateMeetingNames(
     const raw = await withTimeout(callWorkersAi(env.AI, input), TIMEOUT_MS);
     const title = String(raw.title ?? "").trim();
     const slug = slugify(String(raw.slug ?? title));
-    if (!title || !slug) return fallback;
+    if (!title || !slug) {
+      console.error(`[title] unusable model output: ${JSON.stringify(raw).slice(0, 300)}`);
+      return fallback;
+    }
 
     const names: MeetingName[] = [{ title, slug }];
     const alts = Array.isArray(raw.alternatives) ? raw.alternatives : [];
@@ -75,6 +100,7 @@ async function callWorkersAi(
 ): Promise<{ title?: unknown; slug?: unknown; alternatives?: unknown }> {
   const result = await ai.run(MODEL, {
     max_tokens: 400,
+    response_format: RESPONSE_FORMAT,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       {
@@ -83,7 +109,12 @@ async function callWorkersAi(
       },
     ],
   });
-  return parseJsonObject(result.response ?? "");
+  // JSON mode returns an object; a plain text model returns a string.
+  const response = result.response;
+  if (response && typeof response === "object") {
+    return response as { title?: unknown; slug?: unknown; alternatives?: unknown };
+  }
+  return parseJsonObject(typeof response === "string" ? response : "");
 }
 
 // Resolve to the promise, or reject once the timeout elapses — so a slow model

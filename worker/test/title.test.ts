@@ -94,6 +94,19 @@ describe("generateMeetingNames", () => {
     expect(run).toHaveBeenCalledOnce();
   });
 
+  it("accepts an already-parsed object response (JSON mode)", async () => {
+    const run = vi.fn().mockResolvedValue({
+      response: { title: "Pokémon-Runde mit Nils", slug: "pokemon-runde-mit-nils" },
+    });
+    const result = await generateMeetingNames(envWithAi(run), {
+      name: "Nils", notes: "Pokémon Spiele mit dem Sohn", lang: "de",
+    });
+    expect(result[0]).toEqual({
+      title: "Pokémon-Runde mit Nils",
+      slug: "pokemon-runde-mit-nils",
+    });
+  });
+
   it("re-slugifies a model slug that still carries umlauts", async () => {
     const run = vi.fn().mockResolvedValue(
       aiResponse({ title: "Björn und Nils", slug: "björn-und-nils" }),
