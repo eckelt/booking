@@ -10,13 +10,12 @@
   should stay free (e.g. Wed/Fri planning blocks) are held open with calendar
   events in the Nils calendar rather than hardcoded working hours.
 - Meeting titles + join-link slugs: generated from the booker's name and note
-  via Cloudflare Workers AI (Llama, `[ai]` binding — no external API key), with
-  a plain "Termin mit …" / "Meeting with …" fallback when there's no note, the
-  AI binding is missing, or the call fails/times out. The language comes from
-  the booking form's DE/EN toggle. On a slug collision the write tries pretty
-  adjective variants ("Heiterer Termin mit …") before falling back to an
-  invisible short suffix, so the Jitsi room and CalDAV filename stay unique
-  without ugly links.
+  via Claude Haiku (Anthropic API, `ANTHROPIC_API_KEY` secret), with a plain
+  "Termin mit …" / "Meeting with …" fallback when there's no note, the key is
+  missing, or the call fails/times out. The language comes from the booking
+  form's DE/EN toggle. On a slug collision the write tries pretty adjective
+  variants ("Heiterer Termin mit …") before falling back to an invisible short
+  suffix, so the Jitsi room and CalDAV filename stay unique without ugly links.
 
 ## What's pending
 
@@ -34,12 +33,9 @@
 |---|---|
 | `CALDAV_USERNAME` | Fastmail login (`nils@ecke.lt`) |
 | `CALDAV_PASSWORD` | Fastmail app password with CalDAV read/write |
+| `ANTHROPIC_API_KEY` | Anthropic API key — powers meeting-title generation (Claude Haiku). Optional; without it titles use the plain fallback. |
 | `SMTP_USERNAME` | Fastmail login — **now obsolete**, can be deleted |
 | `SMTP_PASSWORD` | Fastmail SMTP app password — **now obsolete**, can be deleted |
-
-Meeting-title generation uses **Cloudflare Workers AI** (the `[ai]` binding in
-`wrangler.toml`) — no secret, no external API key. It provisions on
-`wrangler deploy`.
 
 **Non-secret vars** (in `wrangler.toml`):
 | Name | Value |

@@ -2,14 +2,15 @@ import { describe, it, expect, vi } from "vitest";
 import { slugify, fallbackName, fallbackNames, generateMeetingNames } from "../src/title.js";
 import type { Env } from "../src/types.js";
 
-// Build an Env whose Workers AI binding runs the given mock.
-function envWithAi(run: (...args: unknown[]) => unknown): Env {
-  return { AI: { run } } as unknown as Env;
-}
+const envWithKey = { ANTHROPIC_API_KEY: "sk-test" } as unknown as Env;
+const envNoKey = {} as unknown as Env;
 
-// A Workers AI text-generation response carrying JSON in `.response`.
-function aiResponse(payload: unknown) {
-  return { response: JSON.stringify(payload) };
+// A Claude Messages API response carrying JSON in the first text block.
+function claudeResponse(payload: unknown): Response {
+  return new Response(
+    JSON.stringify({ content: [{ type: "text", text: JSON.stringify(payload) }] }),
+    { status: 200 },
+  );
 }
 
 describe("slugify", () => {
@@ -49,32 +50,37 @@ describe("fallbackName / fallbackNames", () => {
     expect(names.length).toBeGreaterThanOrEqual(4);
     expect(names[0]).toEqual({ title: "Termin mit Felix", slug: "felix" });
     expect(names[1]).toEqual({ title: "Heiterer Termin mit Felix", slug: "heiterer-felix" });
-    // every slug is unique
     const slugs = names.map((n) => n.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 });
 
 describe("generateMeetingNames", () => {
-  it("returns the fallback and skips the model when there is no note", async () => {
-    const run = vi.fn();
-    const result = await generateMeetingNames(envWithAi(run), {
-      name: "Felix", notes: "   ", lang: "de",
-    });
+  it("returns the fallback and skips the API when there is no note", async () => {
+    const fetcher = vi.fn();
+    const result = await generateMeetingNames(
+      envWithKey,
+      { name: "Felix", notes: "   ", lang: "de" },
+      fetcher as unknown as typeof fetch,
+    );
     expect(result[0]).toEqual({ title: "Termin mit Felix", slug: "felix" });
-    expect(run).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("returns the fallback when no AI binding is available", async () => {
-    const result = await generateMeetingNames({} as unknown as Env, {
-      name: "Felix", notes: "Klönschnack Kezchup", lang: "de",
-    });
+  it("returns the fallback when no API key is configured", async () => {
+    const fetcher = vi.fn();
+    const result = await generateMeetingNames(
+      envNoKey,
+      { name: "Felix", notes: "Klönschnack Kezchup", lang: "de" },
+      fetcher as unknown as typeof fetch,
+    );
     expect(result[0]!.title).toBe("Termin mit Felix");
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("uses the model's primary plus slugified alternatives", async () => {
-    const run = vi.fn().mockResolvedValue(
-      aiResponse({
+    const fetcher = vi.fn().mockResolvedValue(
+      claudeResponse({
         title: "Felix und Nils schnacken",
         slug: "felix-und-nils-schnacken",
         alternatives: [
@@ -83,75 +89,66 @@ describe("generateMeetingNames", () => {
         ],
       }),
     );
-    const result = await generateMeetingNames(envWithAi(run), {
-      name: "Felix", notes: "Klönschnack Kezchup", lang: "de",
-    });
+    const result = await generateMeetingNames(
+      envWithKey,
+      { name: "Felix", notes: "Klönschnack Kezchup", lang: "de" },
+      fetcher as unknown as typeof fetch,
+    );
     expect(result).toEqual([
       { title: "Felix und Nils schnacken", slug: "felix-und-nils-schnacken" },
       { title: "Heiterer Klönschnack mit Felix", slug: "heiterer-kloenschnack-felix" },
       { title: "Aufmerksamer Call mit Felix", slug: "aufmerksamer-call-felix" },
     ]);
-    expect(run).toHaveBeenCalledOnce();
-  });
-
-  it("accepts an already-parsed object response (JSON mode)", async () => {
-    const run = vi.fn().mockResolvedValue({
-      response: { title: "Pokémon-Runde mit Nils", slug: "pokemon-runde-mit-nils" },
-    });
-    const result = await generateMeetingNames(envWithAi(run), {
-      name: "Nils", notes: "Pokémon Spiele mit dem Sohn", lang: "de",
-    });
-    expect(result[0]).toEqual({
-      title: "Pokémon-Runde mit Nils",
-      slug: "pokemon-runde-mit-nils",
-    });
-  });
-
-  it("retries plain when JSON mode returns an empty object", async () => {
-    const run = vi.fn()
-      .mockResolvedValueOnce({ response: {} })
-      .mockResolvedValueOnce(aiResponse({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" }));
-    const result = await generateMeetingNames(envWithAi(run), {
-      name: "Nils", notes: "Frühstücken", lang: "de",
-    });
-    expect(result[0]).toEqual({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" });
-    expect(run).toHaveBeenCalledTimes(2);
-  });
-
-  it("retries without response_format when the model rejects JSON mode", async () => {
-    const run = vi.fn()
-      .mockRejectedValueOnce(new Error("5028: response_format unsupported"))
-      .mockResolvedValueOnce(aiResponse({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" }));
-    const result = await generateMeetingNames(envWithAi(run), {
-      name: "Nils", notes: "Frühstücken", lang: "de",
-    });
-    expect(result[0]).toEqual({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" });
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("re-slugifies a model slug that still carries umlauts", async () => {
-    const run = vi.fn().mockResolvedValue(
-      aiResponse({ title: "Björn und Nils", slug: "björn-und-nils" }),
+    const fetcher = vi.fn().mockResolvedValue(
+      claudeResponse({ title: "Björn und Nils", slug: "björn-und-nils" }),
     );
-    const result = await generateMeetingNames(envWithAi(run), {
-      name: "Björn", notes: "kurzes Update", lang: "de",
-    });
+    const result = await generateMeetingNames(
+      envWithKey,
+      { name: "Björn", notes: "kurzes Update", lang: "de" },
+      fetcher as unknown as typeof fetch,
+    );
     expect(result[0]!.slug).toBe("bjoern-und-nils");
   });
 
-  it("falls back when the model call rejects", async () => {
-    const run = vi.fn().mockRejectedValue(new Error("workers-ai down"));
-    const result = await generateMeetingNames(envWithAi(run), {
-      name: "Felix", notes: "etwas", lang: "de",
-    });
+  it("sends the model, key, and note to the Anthropic API", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      claudeResponse({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" }),
+    );
+    await generateMeetingNames(
+      envWithKey,
+      { name: "Nils", notes: "Frühstücken", lang: "de" },
+      fetcher as unknown as typeof fetch,
+    );
+    const [url, options] = fetcher.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.anthropic.com/v1/messages");
+    expect((options.headers as Record<string, string>)["x-api-key"]).toBe("sk-test");
+    expect(options.body as string).toContain("claude-haiku-4-5");
+    expect(options.body as string).toContain("Frühstücken");
+  });
+
+  it("falls back on an API error", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response("nope", { status: 500 }));
+    const result = await generateMeetingNames(
+      envWithKey,
+      { name: "Felix", notes: "etwas", lang: "de" },
+      fetcher as unknown as typeof fetch,
+    );
     expect(result[0]).toEqual({ title: "Termin mit Felix", slug: "felix" });
   });
 
   it("falls back when the model returns unparseable text", async () => {
-    const run = vi.fn().mockResolvedValue({ response: "sorry, no JSON here!" });
-    const result = await generateMeetingNames(envWithAi(run), {
-      name: "Ian", notes: "quick sync", lang: "en",
-    });
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ content: [{ type: "text", text: "sorry, no JSON" }] }), { status: 200 }),
+    );
+    const result = await generateMeetingNames(
+      envWithKey,
+      { name: "Ian", notes: "quick sync", lang: "en" },
+      fetcher as unknown as typeof fetch,
+    );
     expect(result[0]).toEqual({ title: "Meeting with Ian", slug: "ian" });
   });
 });

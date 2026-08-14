@@ -17,24 +17,10 @@ export interface Env {
   JAAS_KEY_ID: string;
   JAAS_PRIVATE_KEY: string;
   HOST_JOIN_SECRET?: string;
-  // Cloudflare Workers AI binding for generating meeting titles. When unbound,
+  // Anthropic API key for generating meeting titles (Claude Haiku). When unset,
   // bookings fall back to a plain "Termin mit …" / "Meeting with …" title.
-  AI?: AiBinding;
+  ANTHROPIC_API_KEY?: string;
   RATE_LIMIT?: KVNamespace;
-}
-
-// Minimal shape of the Workers AI binding we use (text generation). With a
-// json_schema response_format, `response` comes back as a parsed object;
-// without it, as a string — the caller handles both.
-export interface AiBinding {
-  run(
-    model: string,
-    options: {
-      messages: { role: string; content: string }[];
-      max_tokens?: number;
-      response_format?: unknown;
-    },
-  ): Promise<{ response?: unknown }>;
 }
 
 export class SlotUnavailableError extends Error {}
