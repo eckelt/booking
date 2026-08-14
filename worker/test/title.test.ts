@@ -107,6 +107,17 @@ describe("generateMeetingNames", () => {
     });
   });
 
+  it("retries plain when JSON mode returns an empty object", async () => {
+    const run = vi.fn()
+      .mockResolvedValueOnce({ response: {} })
+      .mockResolvedValueOnce(aiResponse({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" }));
+    const result = await generateMeetingNames(envWithAi(run), {
+      name: "Nils", notes: "Frühstücken", lang: "de",
+    });
+    expect(result[0]).toEqual({ title: "Frühstück mit Nils", slug: "fruehstueck-mit-nils" });
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
   it("retries without response_format when the model rejects JSON mode", async () => {
     const run = vi.fn()
       .mockRejectedValueOnce(new Error("5028: response_format unsupported"))

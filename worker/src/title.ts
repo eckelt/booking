@@ -7,8 +7,9 @@ import type { Env } from "./types.js";
 // took ~10s per booking. Check the Workers AI model catalog if this is retired.
 const MODEL = "@cf/meta/llama-3.2-3b-instruct";
 // The call runs in parallel with the CalDAV availability fetch; on a genuine
-// timeout the booking still completes with the plain fallback.
-const TIMEOUT_MS = 6000;
+// timeout the booking still completes with the plain fallback. Sized to cover
+// the JSON-mode attempt plus one plain-mode retry.
+const TIMEOUT_MS = 8000;
 
 export interface MeetingName {
   title: string;
@@ -99,10 +100,12 @@ export function fallbackName(name: string, lang: "de" | "en"): MeetingName {
   return fallbackNames(name, lang)[0]!;
 }
 
+type ModelOutput = { title?: unknown; slug?: unknown; alternatives?: unknown };
+
 async function callWorkersAi(
   ai: NonNullable<Env["AI"]>,
   input: { name: string; notes: string; lang: "de" | "en" },
-): Promise<{ title?: unknown; slug?: unknown; alternatives?: unknown }> {
+): Promise<ModelOutput> {
   const messages = [
     { role: "system", content: SYSTEM_PROMPT },
     {
@@ -111,22 +114,39 @@ async function callWorkersAi(
     },
   ];
 
-  let result: { response?: unknown };
-  try {
-    result = await ai.run(MODEL, { max_tokens: 400, response_format: RESPONSE_FORMAT, messages });
-  } catch (err) {
-    // Some models reject response_format — retry once in plain mode (the prompt
-    // still asks for JSON only, which parseJsonObject then extracts).
-    console.error(`[title] JSON mode rejected, retrying plain: ${(err as Error)?.message ?? err}`);
-    result = await ai.run(MODEL, { max_tokens: 400, messages });
-  }
+  // First try JSON mode. Some models return an empty {} (or reject the param)
+  // under json_schema — if that yields no title, retry once in plain mode (the
+  // prompt still asks for JSON only, which parseJsonObject then extracts).
+  const first = await runModel(ai, messages, RESPONSE_FORMAT);
+  if (hasTitle(first)) return first;
 
-  // JSON mode returns an object; a plain text model returns a string.
-  const response = result.response;
-  if (response && typeof response === "object") {
-    return response as { title?: unknown; slug?: unknown; alternatives?: unknown };
+  console.error("[title] JSON mode gave no title, retrying plain");
+  return runModel(ai, messages, undefined);
+}
+
+async function runModel(
+  ai: NonNullable<Env["AI"]>,
+  messages: { role: string; content: string }[],
+  responseFormat: unknown,
+): Promise<ModelOutput> {
+  try {
+    const options: { messages: typeof messages; max_tokens: number; response_format?: unknown } = {
+      messages,
+      max_tokens: 400,
+    };
+    if (responseFormat) options.response_format = responseFormat;
+    const { response } = await ai.run(MODEL, options);
+    // JSON mode returns an object; a plain text model returns a string.
+    if (response && typeof response === "object") return response as ModelOutput;
+    return parseJsonObject(typeof response === "string" ? response : "");
+  } catch (err) {
+    console.error(`[title] model call failed: ${(err as Error)?.message ?? err}`);
+    return {};
   }
-  return parseJsonObject(typeof response === "string" ? response : "");
+}
+
+function hasTitle(o: ModelOutput): boolean {
+  return typeof o.title === "string" && o.title.trim().length > 0;
 }
 
 // Resolve to the promise, or reject once the timeout elapses — so a slow model
