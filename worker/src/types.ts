@@ -23,12 +23,18 @@ export interface Env {
   RATE_LIMIT?: KVNamespace;
 }
 
-// Minimal shape of the Workers AI binding we use (text generation).
+// Minimal shape of the Workers AI binding we use (text generation). With a
+// json_schema response_format, `response` comes back as a parsed object;
+// without it, as a string — the caller handles both.
 export interface AiBinding {
   run(
     model: string,
-    options: { messages: { role: string; content: string }[]; max_tokens?: number },
-  ): Promise<{ response?: string }>;
+    options: {
+      messages: { role: string; content: string }[];
+      max_tokens?: number;
+      response_format?: unknown;
+    },
+  ): Promise<{ response?: unknown }>;
 }
 
 export class SlotUnavailableError extends Error {}
