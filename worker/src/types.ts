@@ -17,6 +17,9 @@ export interface Env {
   JAAS_KEY_ID: string;
   JAAS_PRIVATE_KEY: string;
   HOST_JOIN_SECRET?: string;
+  // Anthropic API key for generating meeting titles. When unset, bookings fall
+  // back to a plain "Termin mit …" / "Meeting with …" title.
+  ANTHROPIC_API_KEY?: string;
   RATE_LIMIT?: KVNamespace;
 }
 
@@ -26,4 +29,21 @@ export class ConflictError extends Error {}
 export interface Interval {
   start: Date;
   end: Date;
+}
+
+export interface BookingRequest {
+  start: string;
+  duration: number;
+  name: string;
+  email: string;
+  notes: string;
+  rescheduleUid?: string;
+  lang: "de" | "en";
+}
+
+export interface BookingResult {
+  uid: string;
+  start: string;
+  end: string;
+  jitsiUrl: string;
 }

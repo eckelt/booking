@@ -1,8 +1,9 @@
 import type { BookingRequest, BookingResult, Env, Interval } from "./types.js";
-import { SlotUnavailableError } from "./types.js";
+import { SlotUnavailableError, ConflictError } from "./types.js";
 import { fetchBusy, putEvent, deleteEvent, buildIcal } from "./caldav.js";
 import { sendEmails } from "./email.js";
 import { generateUid } from "./jitsi.js";
+import { generateMeetingName } from "./title.js";
 import { computeSlots, workingDayWindow } from "./availability.js";
 
 const MAX_DAYS = 14;
@@ -43,7 +44,9 @@ export function validateBookingRequest(body: unknown): BookingRequest {
     throw new Error("invalid rescheduleUid");
   }
 
-  return { start, duration, name, email, notes, rescheduleUid };
+  const lang = b["lang"] === "en" ? "en" : "de";
+
+  return { start, duration, name, email, notes, rescheduleUid, lang };
 }
 
 export async function createBooking(
@@ -76,25 +79,45 @@ export async function createBooking(
   );
   if (!slotAvailable) throw new SlotUnavailableError();
 
-  const uid = generateUid();
+  const { title, slug } = await generateMeetingName(
+    env,
+    { name: req.name, notes: req.notes ?? "", lang: req.lang ?? "de" },
+    fetcher,
+  );
+
+  // Write the owner's event under the slug, disambiguating with a short suffix
+  // if that slug is already taken (keeps the pretty link, stays collision-safe).
+  let uid = slug;
+  for (let attempt = 0; ; attempt++) {
+    const link = `https://join.ecke.lt/${uid}`;
+    const ownerJitsiUrl = env.HOST_JOIN_SECRET
+      ? `${link}?host=${env.HOST_JOIN_SECRET}`
+      : link;
+    const icalForOwner = buildIcal({
+      uid,
+      start,
+      end,
+      title,
+      name: req.name,
+      notes: req.notes ?? "",
+      jitsiUrl: ownerJitsiUrl,
+      ownerEmail: env.OWNER_EMAIL,
+      ownerName: env.OWNER_NAME,
+      bookerEmail: req.email,
+    });
+    try {
+      await putEvent(env, uid, icalForOwner, fetcher);
+      break;
+    } catch (err) {
+      if (err instanceof ConflictError && attempt < 4) {
+        uid = `${slug}-${generateUid().slice(0, 4)}`;
+        continue;
+      }
+      throw err;
+    }
+  }
+
   const jitsiUrl = `https://join.ecke.lt/${uid}`;
-  const ownerJitsiUrl = env.HOST_JOIN_SECRET
-    ? `${jitsiUrl}?host=${env.HOST_JOIN_SECRET}`
-    : jitsiUrl;
-
-  const icalForOwner = buildIcal({
-    uid,
-    start,
-    end,
-    name: req.name,
-    notes: req.notes ?? "",
-    jitsiUrl: ownerJitsiUrl,
-    ownerEmail: env.OWNER_EMAIL,
-    ownerName: env.OWNER_NAME,
-    bookerEmail: req.email,
-  });
-
-  await putEvent(env, uid, icalForOwner, fetcher);
 
   if (req.rescheduleUid) {
     await deleteEvent(env, req.rescheduleUid, fetcher).catch((err) =>
@@ -108,6 +131,7 @@ export async function createBooking(
     uid,
     start,
     end,
+    title,
     name: req.name,
     notes: req.notes ?? "",
     jitsiUrl,

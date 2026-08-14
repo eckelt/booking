@@ -9,6 +9,11 @@
 - Working hours: Mon–Fri 9–17, max 14 days ahead. Recurring afternoons that
   should stay free (e.g. Wed/Fri planning blocks) are held open with calendar
   events in the Nils calendar rather than hardcoded working hours.
+- Meeting titles + join-link slugs: generated from the booker's name and note
+  via Claude (Haiku), with a plain "Termin mit …" / "Meeting with …" fallback
+  when there's no note, no `ANTHROPIC_API_KEY`, or the call fails. The language
+  comes from the booking form's DE/EN toggle. Slug collisions get a short random
+  suffix so the Jitsi room and CalDAV filename stay unique.
 
 ## What's pending
 
@@ -26,6 +31,7 @@
 |---|---|
 | `CALDAV_USERNAME` | Fastmail login (`nils@ecke.lt`) |
 | `CALDAV_PASSWORD` | Fastmail app password with CalDAV read/write |
+| `ANTHROPIC_API_KEY` | Claude API key for meeting-title generation. Optional — without it, titles use the plain fallback. Set via `wrangler secret put ANTHROPIC_API_KEY`. |
 | `SMTP_USERNAME` | Fastmail login — **now obsolete**, can be deleted |
 | `SMTP_PASSWORD` | Fastmail SMTP app password — **now obsolete**, can be deleted |
 
