@@ -4,7 +4,10 @@ import type { Env } from "./types.js";
 // external API key. (The older @cf/meta/llama-3.1-8b-instruct was deprecated on
 // the platform.) Check the Workers AI model catalog if this one is retired too.
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-const TIMEOUT_MS = 5000;
+// Generous ceiling: the 70B model can take several seconds. The call runs in
+// parallel with the CalDAV availability fetch, so most of this overlaps; on a
+// genuine timeout the booking still completes with the plain fallback.
+const TIMEOUT_MS = 12000;
 
 export interface MeetingName {
   title: string;
