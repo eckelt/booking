@@ -12,8 +12,10 @@
 - Meeting titles + join-link slugs: generated from the booker's name and note
   via Claude (Haiku), with a plain "Termin mit …" / "Meeting with …" fallback
   when there's no note, no `ANTHROPIC_API_KEY`, or the call fails. The language
-  comes from the booking form's DE/EN toggle. Slug collisions get a short random
-  suffix so the Jitsi room and CalDAV filename stay unique.
+  comes from the booking form's DE/EN toggle. On a slug collision the write
+  tries pretty adjective variants ("Heiterer Termin mit …") before falling back
+  to an invisible short suffix, so the Jitsi room and CalDAV filename stay
+  unique without ugly links.
 
 ## What's pending
 

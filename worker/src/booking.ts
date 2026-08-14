@@ -3,7 +3,8 @@ import { SlotUnavailableError, ConflictError } from "./types.js";
 import { fetchBusy, putEvent, deleteEvent, buildIcal } from "./caldav.js";
 import { sendEmails } from "./email.js";
 import { generateUid } from "./jitsi.js";
-import { generateMeetingName } from "./title.js";
+import { generateMeetingNames } from "./title.js";
+import type { MeetingName } from "./title.js";
 import { computeSlots, workingDayWindow } from "./availability.js";
 
 const MAX_DAYS = 14;
@@ -79,25 +80,33 @@ export async function createBooking(
   );
   if (!slotAvailable) throw new SlotUnavailableError();
 
-  const { title, slug } = await generateMeetingName(
+  const names = await generateMeetingNames(
     env,
     { name: req.name, notes: req.notes ?? "", lang: req.lang ?? "de" },
     fetcher,
   );
 
-  // Write the owner's event under the slug, disambiguating with a short suffix
-  // if that slug is already taken (keeps the pretty link, stays collision-safe).
-  let uid = slug;
-  for (let attempt = 0; ; attempt++) {
-    const link = `https://join.ecke.lt/${uid}`;
+  // Try each pretty candidate (primary, then adjective variants). If every slug
+  // is somehow taken, a short random suffix on the primary is the invisible
+  // last resort so the Jitsi room and CalDAV filename stay unique.
+  const attempts: MeetingName[] = [
+    ...names,
+    { title: names[0]!.title, slug: `${names[0]!.slug}-${generateUid().slice(0, 4)}` },
+  ];
+
+  let uid = "";
+  let title = "";
+  for (let i = 0; i < attempts.length; i++) {
+    const cand = attempts[i]!;
+    const link = `https://join.ecke.lt/${cand.slug}`;
     const ownerJitsiUrl = env.HOST_JOIN_SECRET
       ? `${link}?host=${env.HOST_JOIN_SECRET}`
       : link;
     const icalForOwner = buildIcal({
-      uid,
+      uid: cand.slug,
       start,
       end,
-      title,
+      title: cand.title,
       name: req.name,
       notes: req.notes ?? "",
       jitsiUrl: ownerJitsiUrl,
@@ -106,13 +115,12 @@ export async function createBooking(
       bookerEmail: req.email,
     });
     try {
-      await putEvent(env, uid, icalForOwner, fetcher);
+      await putEvent(env, cand.slug, icalForOwner, fetcher);
+      uid = cand.slug;
+      title = cand.title;
       break;
     } catch (err) {
-      if (err instanceof ConflictError && attempt < 4) {
-        uid = `${slug}-${generateUid().slice(0, 4)}`;
-        continue;
-      }
+      if (err instanceof ConflictError && i < attempts.length - 1) continue;
       throw err;
     }
   }
