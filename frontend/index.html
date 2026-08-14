@@ -1105,13 +1105,35 @@
                 return slotCache[iso];
             }
 
-            function prefetchAllSlots() {
-                const d = new Date(today);
-                for (let i = 0; i <= 14; i++) {
-                    if (isWorkday(d)) {
-                        fetchSlots(new Date(d)).then(() => renderCalendar());
+            async function prefetchAllSlots() {
+                // One range request for the whole window — the worker fetches
+                // each calendar once — instead of one request per day (which
+                // fanned out to ~20 Fastmail calls and tripped its rate limit).
+                const startISO = formatDateISO(today);
+                const endDate = new Date(today);
+                endDate.setDate(endDate.getDate() + 14);
+                const endISO = formatDateISO(endDate);
+                try {
+                    const res = await fetch(
+                        `${API}/slots?duration=${DURATION}&from=${encodeURIComponent(startISO)}&to=${encodeURIComponent(endISO)}`,
+                    );
+                    if (!res.ok) throw new Error();
+                    const all = (await res.json()).slots || [];
+                    const byDay = {};
+                    for (const s of all) (byDay[s.start.slice(0, 10)] ||= []).push(s);
+                    const d = new Date(today);
+                    for (let i = 0; i <= 14; i++) {
+                        if (isWorkday(d)) slotCache[formatDateISO(d)] = byDay[formatDateISO(d)] || [];
+                        d.setDate(d.getDate() + 1);
                     }
-                    d.setDate(d.getDate() + 1);
+                    renderCalendar();
+                } catch {
+                    // Fallback to per-day requests if the range is rejected.
+                    const d = new Date(today);
+                    for (let i = 0; i <= 14; i++) {
+                        if (isWorkday(d)) fetchSlots(new Date(d)).then(() => renderCalendar());
+                        d.setDate(d.getDate() + 1);
+                    }
                 }
             }
 
