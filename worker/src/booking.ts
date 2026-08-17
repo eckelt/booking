@@ -3,7 +3,7 @@ import { SlotUnavailableError, ConflictError } from "./types.js";
 import { fetchBusy, putEvent, deleteEvent, buildIcal } from "./caldav.js";
 import { sendEmails } from "./email.js";
 import { generateUid } from "./jitsi.js";
-import { generateMeetingNames } from "./title.js";
+import { generateMeetingNames, fallbackNames } from "./title.js";
 import type { MeetingName } from "./title.js";
 import { computeSlots, workingDayWindow } from "./availability.js";
 
@@ -47,7 +47,9 @@ export function validateBookingRequest(body: unknown): BookingRequest {
 
   const lang = b["lang"] === "en" ? "en" : "de";
 
-  return { start, duration, name, email, notes, rescheduleUid, lang };
+  const aiTitle = b["aiTitle"] !== false;
+
+  return { start, duration, name, email, notes, rescheduleUid, lang, aiTitle };
 }
 
 export async function createBooking(
@@ -61,12 +63,15 @@ export async function createBooking(
   const end = new Date(start.getTime() + durationMs);
 
   // Kick off title generation now so its latency overlaps the CalDAV
-  // availability fetch below. generateMeetingNames never rejects.
-  const namesPromise = generateMeetingNames(
-    env,
-    { name: req.name, notes: req.notes ?? "", lang: req.lang ?? "de" },
-    fetcher,
-  );
+  // availability fetch below. generateMeetingNames never rejects. A booker
+  // who opted out of AI title generation skips the model call entirely.
+  const namesPromise = req.aiTitle === false
+    ? Promise.resolve(fallbackNames(req.name, req.lang ?? "de"))
+    : generateMeetingNames(
+        env,
+        { name: req.name, notes: req.notes ?? "", lang: req.lang ?? "de" },
+        fetcher,
+      );
 
   const dayStart = new Date(start);
   dayStart.setHours(0, 0, 0, 0);

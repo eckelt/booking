@@ -95,4 +95,21 @@ describe("validateBookingRequest", () => {
     });
     expect(bogus.lang).toBe("de");
   });
+
+  it("defaults aiTitle to true and accepts an explicit opt-out", () => {
+    const onByDefault = validateBookingRequest({
+      start: future, duration: 30, name: "Jane", email: "jane@example.com",
+    });
+    expect(onByDefault.aiTitle).toBe(true);
+
+    const optedOut = validateBookingRequest({
+      start: future, duration: 30, name: "Jane", email: "jane@example.com", aiTitle: false,
+    });
+    expect(optedOut.aiTitle).toBe(false);
+
+    const truthyIgnored = validateBookingRequest({
+      start: future, duration: 30, name: "Jane", email: "jane@example.com", aiTitle: "false",
+    });
+    expect(truthyIgnored.aiTitle).toBe(true);
+  });
 });

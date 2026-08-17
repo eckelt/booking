@@ -39,6 +39,9 @@ export interface BookingRequest {
   notes: string;
   rescheduleUid?: string;
   lang: "de" | "en";
+  // Booker's opt-out of AI title generation (default true). false skips the
+  // model call entirely and uses the plain "Termin mit …" fallback title.
+  aiTitle: boolean;
 }
 
 export interface BookingResult {

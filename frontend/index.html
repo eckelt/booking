@@ -616,10 +616,52 @@
             .privacy-note a {
                 color: var(--muted);
             }
-            .ai-hint {
-                font-size: 0.75rem;
+            .notes-label-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.5rem;
+            }
+            .ai-toggle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 1.5rem;
+                height: 1.5rem;
+                padding: 0;
+                border: none;
+                border-radius: 0.35rem;
+                background: none;
                 color: var(--muted);
-                margin-top: 0.35rem;
+                opacity: 0.65;
+                cursor: pointer;
+                flex-shrink: 0;
+            }
+            .ai-toggle svg {
+                width: 0.95rem;
+                height: 0.95rem;
+            }
+            .ai-toggle .ai-toggle-slash {
+                opacity: 0;
+            }
+            .ai-toggle:hover,
+            .ai-toggle:focus-visible {
+                opacity: 1;
+                color: var(--primary);
+                background: color-mix(in srgb, var(--primary) 12%, transparent);
+            }
+            .ai-toggle:focus-visible {
+                outline: 2px solid var(--primary);
+                outline-offset: 1px;
+            }
+            .ai-toggle.off {
+                opacity: 0.4;
+            }
+            .ai-toggle.off .ai-toggle-star {
+                opacity: 0.5;
+            }
+            .ai-toggle.off .ai-toggle-slash {
+                opacity: 1;
             }
         </style>
     </head>
@@ -709,7 +751,8 @@
                     labelNotes: "Notes",
                     optional: "(optional)",
                     phNotes: "What would you like to discuss?",
-                    notesAiHint: "Your note is processed by AI to suggest a short meeting title — please don't include sensitive information.",
+                    aiToggleOnHint: "AI turns your note into a short meeting title. Click to turn off (uses a plain title instead).",
+                    aiToggleOffHint: "AI title suggestion is off — a plain title will be used. Click to turn on.",
                     confirm: "Confirm booking",
                     confirming: "Booking…",
                     errName: "Please enter your name.",
@@ -753,7 +796,8 @@
                     labelNotes: "Notizen",
                     optional: "(optional)",
                     phNotes: "Worüber möchtest du sprechen?",
-                    notesAiHint: "Deine Notiz wird von einer KI verarbeitet, um einen kurzen Termintitel vorzuschlagen — bitte keine sensiblen Informationen eintragen.",
+                    aiToggleOnHint: "Eine KI macht aus deiner Notiz einen kurzen Termintitel. Klicken zum Ausschalten (dann wird ein einfacher Titel verwendet).",
+                    aiToggleOffHint: "KI-Titelvorschlag ist ausgeschaltet — es wird ein einfacher Titel verwendet. Klicken zum Einschalten.",
                     confirm: "Buchung bestätigen",
                     confirming: "Wird gebucht…",
                     errName: "Bitte gib deinen Namen ein.",
@@ -798,7 +842,8 @@
                     labelNotes: "Notas",
                     optional: "(opcional)",
                     phNotes: "¿De qué te gustaría hablar?",
-                    notesAiHint: "Tu nota es procesada por IA para sugerir un título breve para la reunión — por favor no incluyas información sensible.",
+                    aiToggleOnHint: "La IA convierte tu nota en un título breve para la reunión. Haz clic para desactivarlo (se usará un título simple).",
+                    aiToggleOffHint: "La sugerencia de título por IA está desactivada — se usará un título simple. Haz clic para activarla.",
                     confirm: "Confirmar reserva",
                     confirming: "Reservando…",
                     errName: "Por favor, introduce tu nombre.",
@@ -1283,7 +1328,18 @@
         <form class="booking-form" id="bForm" novalidate>
           <div class="form-group"><label for="fName">${T.labelName}</label><input type="text" id="fName" placeholder="${T.phName}" value="${preName.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group"><label for="fEmail">${T.labelEmail}</label><input type="email" id="fEmail" placeholder="${T.phEmail}" value="${preEmail.replace(/"/g, "&quot;")}" required /></div>
-          <div class="form-group"><label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label><textarea id="fNotes" placeholder="${T.phNotes}" aria-describedby="fNotesAiHint"></textarea><p class="ai-hint" id="fNotesAiHint">${T.notesAiHint}</p></div>
+          <div class="form-group">
+            <div class="notes-label-row">
+              <label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label>
+              <button type="button" id="aiToggle" class="ai-toggle" aria-pressed="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path class="ai-toggle-star" fill="currentColor" d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"/>
+                  <line class="ai-toggle-slash" x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+            <textarea id="fNotes" placeholder="${T.phNotes}"></textarea>
+          </div>
           <div id="fErr" class="form-error" role="alert" style="display:none"></div>
           <button type="submit" class="btn-confirm" id="btnOk">${isReschedule ? T.confirm : T.confirm}</button>
           <p class="privacy-note">${T.privacyNote}</p>
@@ -1293,6 +1349,22 @@
                 document.getElementById("fName").addEventListener("input", (e) => localStorage.setItem("booking-name", e.target.value));
                 document.getElementById("fEmail").addEventListener("input", (e) => localStorage.setItem("booking-email", e.target.value));
                 document.getElementById("fNotes").addEventListener("input", (e) => localStorage.setItem("booking-notes", e.target.value));
+
+                const aiToggle = document.getElementById("aiToggle");
+                let aiEnabled = localStorage.getItem("booking-ai-title") !== "off";
+                const renderAiToggle = () => {
+                    aiToggle.classList.toggle("off", !aiEnabled);
+                    aiToggle.setAttribute("aria-pressed", String(aiEnabled));
+                    const hint = aiEnabled ? T.aiToggleOnHint : T.aiToggleOffHint;
+                    aiToggle.title = hint;
+                    aiToggle.setAttribute("aria-label", hint);
+                };
+                renderAiToggle();
+                aiToggle.addEventListener("click", () => {
+                    aiEnabled = !aiEnabled;
+                    localStorage.setItem("booking-ai-title", aiEnabled ? "on" : "off");
+                    renderAiToggle();
+                });
                 document
                     .getElementById("bForm")
                     .addEventListener("submit", async (e) => {
@@ -1340,6 +1412,7 @@
                                         document.documentElement.lang === "en"
                                             ? "en"
                                             : "de",
+                                    aiTitle: aiEnabled,
                                     ...(rescheduleUid && { rescheduleUid }),
                                 }),
                             });
