@@ -5,6 +5,7 @@ import type { Env } from "./types.js";
 // bookings fall back to a plain title, so a booking never fails on this.
 const MODEL = "claude-haiku-4-5";
 const TIMEOUT_MS = 8000;
+const MAX_TITLE_LEN = 120;
 
 export interface MeetingName {
   title: string;
@@ -35,7 +36,7 @@ export async function generateMeetingNames(
 
   try {
     const raw = await callClaude(env, input, fetcher);
-    const title = String(raw.title ?? "").trim();
+    const title = sanitizeTitle(String(raw.title ?? ""));
     const slug = slugify(String(raw.slug ?? title));
     if (!title || !slug) {
       console.error(`[title] unusable model output: ${JSON.stringify(raw).slice(0, 300)}`);
@@ -45,7 +46,7 @@ export async function generateMeetingNames(
     const names: MeetingName[] = [{ title, slug }];
     const alts = Array.isArray(raw.alternatives) ? raw.alternatives : [];
     for (const a of alts) {
-      const altTitle = String((a as { title?: unknown })?.title ?? "").trim();
+      const altTitle = sanitizeTitle(String((a as { title?: unknown })?.title ?? ""));
       const altSlug = slugify(String((a as { slug?: unknown })?.slug ?? altTitle));
       if (altTitle && altSlug) names.push({ title: altTitle, slug: altSlug });
     }
@@ -119,6 +120,20 @@ function parseJsonObject(text: string): { title?: unknown; slug?: unknown; alter
   } catch {
     return {};
   }
+}
+
+// The model's title is derived from an attacker-controllable note (the note
+// text is effectively a prompt-injection surface), so treat it as untrusted
+// even though it comes back as "structured" JSON: strip control/non-printable
+// characters a model could be coaxed into emitting and cap the length before
+// it reaches buildIcal's SUMMARY. escapeIcalText still does the ICS-syntax
+// escaping — this is a second, independent layer, not a replacement for it.
+function sanitizeTitle(s: string): string {
+  return s
+    .replace(/[\x00-\x1f\x7f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_TITLE_LEN);
 }
 
 // Reduce a string to a URL-safe [a-z0-9-] slug. German umlauts become digraphs

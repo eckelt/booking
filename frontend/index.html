@@ -616,6 +616,11 @@
             .privacy-note a {
                 color: var(--muted);
             }
+            .ai-hint {
+                font-size: 0.75rem;
+                color: var(--muted);
+                margin-top: 0.35rem;
+            }
         </style>
     </head>
     <body>
@@ -704,6 +709,7 @@
                     labelNotes: "Notes",
                     optional: "(optional)",
                     phNotes: "What would you like to discuss?",
+                    notesAiHint: "Your note is processed by AI to suggest a short meeting title — please don't include sensitive information.",
                     confirm: "Confirm booking",
                     confirming: "Booking…",
                     errName: "Please enter your name.",
@@ -747,6 +753,7 @@
                     labelNotes: "Notizen",
                     optional: "(optional)",
                     phNotes: "Worüber möchtest du sprechen?",
+                    notesAiHint: "Deine Notiz wird von einer KI verarbeitet, um einen kurzen Termintitel vorzuschlagen — bitte keine sensiblen Informationen eintragen.",
                     confirm: "Buchung bestätigen",
                     confirming: "Wird gebucht…",
                     errName: "Bitte gib deinen Namen ein.",
@@ -791,6 +798,7 @@
                     labelNotes: "Notas",
                     optional: "(opcional)",
                     phNotes: "¿De qué te gustaría hablar?",
+                    notesAiHint: "Tu nota es procesada por IA para sugerir un título breve para la reunión — por favor no incluyas información sensible.",
                     confirm: "Confirmar reserva",
                     confirming: "Reservando…",
                     errName: "Por favor, introduce tu nombre.",
@@ -1275,7 +1283,7 @@
         <form class="booking-form" id="bForm" novalidate>
           <div class="form-group"><label for="fName">${T.labelName}</label><input type="text" id="fName" placeholder="${T.phName}" value="${preName.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group"><label for="fEmail">${T.labelEmail}</label><input type="email" id="fEmail" placeholder="${T.phEmail}" value="${preEmail.replace(/"/g, "&quot;")}" required /></div>
-          <div class="form-group"><label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label><textarea id="fNotes" placeholder="${T.phNotes}"></textarea></div>
+          <div class="form-group"><label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label><textarea id="fNotes" placeholder="${T.phNotes}" aria-describedby="fNotesAiHint"></textarea><p class="ai-hint" id="fNotesAiHint">${T.notesAiHint}</p></div>
           <div id="fErr" class="form-error" role="alert" style="display:none"></div>
           <button type="submit" class="btn-confirm" id="btnOk">${isReschedule ? T.confirm : T.confirm}</button>
           <p class="privacy-note">${T.privacyNote}</p>

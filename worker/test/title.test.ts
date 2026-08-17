@@ -140,6 +140,20 @@ describe("generateMeetingNames", () => {
     expect(result[0]).toEqual({ title: "Termin mit Felix", slug: "felix" });
   });
 
+  it("strips control characters and caps an oversized model title", async () => {
+    const longTitle = `Frühstück \x1b mit Nils ${"x".repeat(200)}`;
+    const fetcher = vi.fn().mockResolvedValue(
+      claudeResponse({ title: longTitle, slug: "fruehstueck-mit-nils" }),
+    );
+    const result = await generateMeetingNames(
+      envWithKey,
+      { name: "Nils", notes: "Frühstücken", lang: "de" },
+      fetcher as unknown as typeof fetch,
+    );
+    expect(result[0]!.title.length).toBeLessThanOrEqual(120);
+    expect(result[0]!.title).not.toMatch(/[\x00-\x1f\x7f]/);
+  });
+
   it("falls back when the model returns unparseable text", async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ content: [{ type: "text", text: "sorry, no JSON" }] }), { status: 200 }),
