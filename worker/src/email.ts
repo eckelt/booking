@@ -224,6 +224,17 @@ async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
   }
 }
 
+// btoa() only accepts Latin-1 (code points 0-255) and throws on anything
+// beyond it — e.g. the em dash ("—") that DESCRIPTION falls back to for a
+// booking without notes (see buildIcal). Route through UTF-8 bytes first so
+// the .ics attachment never crashes email sending on ordinary Unicode text.
+export function utf8ToBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+  return btoa(binary);
+}
+
 function buildRawMessage(msg: SmtpMessage): string {
   const boundary = `boundary_${Date.now()}`;
   const lines: string[] = [
@@ -255,7 +266,7 @@ function buildRawMessage(msg: SmtpMessage): string {
         `Content-Disposition: attachment; filename="${msg.icsAttachment.filename}"`,
         `Content-Transfer-Encoding: base64`,
         "",
-        btoa(msg.icsAttachment.content)
+        utf8ToBase64(msg.icsAttachment.content)
       );
     }
     lines.push(`--${boundary}--`);
