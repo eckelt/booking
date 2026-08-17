@@ -616,11 +616,15 @@
             .privacy-note a {
                 color: var(--muted);
             }
-            .notes-label-row {
+            .ai-status-row {
                 display: flex;
                 align-items: center;
-                justify-content: space-between;
-                gap: 0.5rem;
+                gap: 0.3rem;
+                margin: 0.35rem 0;
+            }
+            .ai-status-text {
+                font-size: 0.75rem;
+                color: var(--muted);
             }
             .ai-toggle {
                 display: inline-flex;
@@ -751,8 +755,10 @@
                     labelNotes: "Notes",
                     optional: "(optional)",
                     phNotes: "What would you like to discuss?",
-                    aiToggleOnHint: "AI turns your note into a short meeting title. Click to turn off (uses a plain title instead).",
-                    aiToggleOffHint: "AI title suggestion is off — a plain title will be used. Click to turn on.",
+                    aiStatusOn: "AI turns your note into a short meeting title.",
+                    aiStatusOff: "AI title generation is off.",
+                    aiToggleOnHint: "AI title generation is on — your note is used to create a short meeting title. Click to turn off.",
+                    aiToggleOffHint: "AI title generation is off — a plain title will be used instead. Click to turn on.",
                     confirm: "Confirm booking",
                     confirming: "Booking…",
                     errName: "Please enter your name.",
@@ -796,8 +802,10 @@
                     labelNotes: "Notizen",
                     optional: "(optional)",
                     phNotes: "Worüber möchtest du sprechen?",
-                    aiToggleOnHint: "Eine KI macht aus deiner Notiz einen kurzen Termintitel. Klicken zum Ausschalten (dann wird ein einfacher Titel verwendet).",
-                    aiToggleOffHint: "KI-Titelvorschlag ist ausgeschaltet — es wird ein einfacher Titel verwendet. Klicken zum Einschalten.",
+                    aiStatusOn: "KI erstellt aus deiner Notiz einen kurzen Besprechungstitel.",
+                    aiStatusOff: "KI-Titelerstellung deaktiviert.",
+                    aiToggleOnHint: "KI-Titelerstellung aktiviert — aus deiner Notiz wird ein kurzer Besprechungstitel erstellt. Klicken zum Deaktivieren.",
+                    aiToggleOffHint: "KI-Titelerstellung deaktiviert — es wird ein einfacher Titel verwendet. Klicken zum Aktivieren.",
                     confirm: "Buchung bestätigen",
                     confirming: "Wird gebucht…",
                     errName: "Bitte gib deinen Namen ein.",
@@ -842,8 +850,10 @@
                     labelNotes: "Notas",
                     optional: "(opcional)",
                     phNotes: "¿De qué te gustaría hablar?",
-                    aiToggleOnHint: "La IA convierte tu nota en un título breve para la reunión. Haz clic para desactivarlo (se usará un título simple).",
-                    aiToggleOffHint: "La sugerencia de título por IA está desactivada — se usará un título simple. Haz clic para activarla.",
+                    aiStatusOn: "La IA convierte tu nota en un título breve para la reunión.",
+                    aiStatusOff: "Generación de título por IA desactivada.",
+                    aiToggleOnHint: "Generación de título por IA activada — tu nota se usa para crear un título breve para la reunión. Haz clic para desactivarla.",
+                    aiToggleOffHint: "Generación de título por IA desactivada — se usará un título simple. Haz clic para activarla.",
                     confirm: "Confirmar reserva",
                     confirming: "Reservando…",
                     errName: "Por favor, introduce tu nombre.",
@@ -1329,16 +1339,17 @@
           <div class="form-group"><label for="fName">${T.labelName}</label><input type="text" id="fName" placeholder="${T.phName}" value="${preName.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group"><label for="fEmail">${T.labelEmail}</label><input type="email" id="fEmail" placeholder="${T.phEmail}" value="${preEmail.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group">
-            <div class="notes-label-row">
-              <label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label>
+            <label for="fNotes">${T.labelNotes} <span style="font-weight:400">${T.optional}</span></label>
+            <div class="ai-status-row">
               <button type="button" id="aiToggle" class="ai-toggle" aria-pressed="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path class="ai-toggle-star" fill="currentColor" d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z"/>
                   <line class="ai-toggle-slash" x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
               </button>
+              <span class="ai-status-text" id="aiStatusText"></span>
             </div>
-            <textarea id="fNotes" placeholder="${T.phNotes}"></textarea>
+            <textarea id="fNotes" placeholder="${T.phNotes}" aria-describedby="aiStatusText"></textarea>
           </div>
           <div id="fErr" class="form-error" role="alert" style="display:none"></div>
           <button type="submit" class="btn-confirm" id="btnOk">${isReschedule ? T.confirm : T.confirm}</button>
@@ -1351,6 +1362,7 @@
                 document.getElementById("fNotes").addEventListener("input", (e) => localStorage.setItem("booking-notes", e.target.value));
 
                 const aiToggle = document.getElementById("aiToggle");
+                const aiStatusText = document.getElementById("aiStatusText");
                 let aiEnabled = localStorage.getItem("booking-ai-title") !== "off";
                 const renderAiToggle = () => {
                     aiToggle.classList.toggle("off", !aiEnabled);
@@ -1358,6 +1370,7 @@
                     const hint = aiEnabled ? T.aiToggleOnHint : T.aiToggleOffHint;
                     aiToggle.title = hint;
                     aiToggle.setAttribute("aria-label", hint);
+                    aiStatusText.textContent = aiEnabled ? T.aiStatusOn : T.aiStatusOff;
                 };
                 renderAiToggle();
                 aiToggle.addEventListener("click", () => {
