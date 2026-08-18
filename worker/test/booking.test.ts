@@ -146,7 +146,7 @@ describe("createBooking — reschedule", () => {
     throw new Error("no bookable weekday found in range");
   }
 
-  function icsFor(uid: string, title: string, start: Date, end: Date): string {
+  function icsFor(uid: string, title: string, start: Date, end: Date, omitUid = false): string {
     const fmtLocal = (d: Date) => {
       const s = new Intl.DateTimeFormat("sv-SE", {
         timeZone: "Europe/Berlin",
@@ -158,7 +158,7 @@ describe("createBooking — reschedule", () => {
     };
     return [
       "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
-      `UID:${uid}`,
+      ...(omitUid ? [] : [`UID:${uid}`]),
       `DTSTART;TZID=Europe/Berlin:${fmtLocal(start)}`,
       `DTEND;TZID=Europe/Berlin:${fmtLocal(end)}`,
       `SUMMARY:${title}`,
@@ -174,9 +174,12 @@ describe("createBooking — reschedule", () => {
   // reportBusyOverride optionally reports slightly different timestamps for
   // that same uid via REPORT than what GET returns for it, simulating the
   // two CalDAV code paths not agreeing on the exact instant byte-for-byte.
+  // reportOmitsUid simulates a CalDAV server that doesn't include UID on an
+  // expanded/property-limited REPORT result even though it was requested.
   function makeFetcher(
     oldEvent?: "404" | "error" | { uid: string; title: string; start: Date; end: Date },
     reportBusyOverride?: { start: Date; end: Date },
+    reportOmitsUid = false,
   ) {
     return vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? "GET";
@@ -188,6 +191,7 @@ describe("createBooking — reschedule", () => {
               oldEvent.title,
               reportBusyOverride?.start ?? oldEvent.start,
               reportBusyOverride?.end ?? oldEvent.end,
+              reportOmitsUid,
             )
           : "";
         const body = calendarData
@@ -235,6 +239,29 @@ describe("createBooking — reschedule", () => {
 
     const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
     expect(deleteCalls).toHaveLength(0);
+  });
+
+  it("still lets you reschedule to the exact same slot even when REPORT doesn't carry the uid at all", async () => {
+    const oldStart = pickBookableStart(2);
+    const oldEnd = new Date(oldStart.getTime() + 30 * 60000);
+
+    const req = validateBookingRequest({
+      start: oldStart.toISOString(), // moving to the very same time
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+      rescheduleUid: "old-meeting-uid",
+    });
+    const fetcher = makeFetcher(
+      { uid: "old-meeting-uid", title: "Radtour am Krupunder See", start: oldStart, end: oldEnd },
+      undefined,
+      true, // REPORT omits UID — must fall back to overlap-based exclusion
+    );
+
+    const result = await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    expect(result.uid).toBe("old-meeting-uid");
+    expect(result.start).toBe(oldStart.toISOString());
   });
 
   it("does not block the reschedule with the old event's own (buffered) slot on the same day", async () => {

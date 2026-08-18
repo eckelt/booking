@@ -5,7 +5,7 @@ import { sendEmails } from "./email.js";
 import { generateUid } from "./jitsi.js";
 import { generateMeetingNames, fallbackNames } from "./title.js";
 import type { MeetingName } from "./title.js";
-import { computeSlots, workingDayWindow } from "./availability.js";
+import { computeSlots, workingDayWindow, excludeMovingEvent } from "./availability.js";
 
 const MAX_DAYS = 14;
 const SUPPORTED_DURATIONS = [30, 60] as const;
@@ -97,14 +97,11 @@ export async function createBooking(
     fetchBusy(env, env.CALDAV_CALENDAR_OHANA, dayStart, dayEnd, fetcher),
   ]);
 
-  let allBusy: Interval[] = [...nilsBusy, ...ohanaBusy];
-  if (req.rescheduleUid) {
-    // The event being moved is still on the calendar during this check —
-    // exclude it by uid (not by matching timestamps parsed through two
-    // different code paths) so a reschedule can never be blocked by its own
-    // old slot. Works even if the getEvent() lookup above failed.
-    allBusy = allBusy.filter((iv) => iv.uid !== req.rescheduleUid);
-  }
+  const allBusy: Interval[] = excludeMovingEvent(
+    [...nilsBusy, ...ohanaBusy],
+    req.rescheduleUid,
+    oldEvent,
+  );
 
   const window = workingDayWindow(start);
   if (!window) throw new SlotUnavailableError();

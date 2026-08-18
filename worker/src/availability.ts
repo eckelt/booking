@@ -103,16 +103,42 @@ export function invertIntervals(
   return free;
 }
 
+// Slots start on a fixed 30-minute grid regardless of duration, so a 60-min
+// booking can start on the half hour (10:30–11:30), not just on the hour.
+const SLOT_STEP_MS = 30 * 60 * 1000;
+
 export function generateSlots(free: Interval[], durationMs: number): Slot[] {
+  const step = Math.min(SLOT_STEP_MS, durationMs);
   const slots: Slot[] = [];
   for (const interval of free) {
     let t = interval.start.getTime();
     while (t + durationMs <= interval.end.getTime()) {
       slots.push({ start: new Date(t), end: new Date(t + durationMs) });
-      t += durationMs;
+      t += step;
     }
   }
   return slots;
+}
+
+// A reschedule's own old event is still on the calendar while this check
+// runs. Exclude it two ways at once: by CalDAV uid (exact, when the REPORT
+// response actually carries it) and by direct time overlap against the
+// event's known start/end from a successful getEvent() lookup (works even
+// if the uid didn't come through, e.g. a CalDAV server quirk around
+// expanded/property-limited results).
+export function excludeMovingEvent(
+  busy: Interval[],
+  rescheduleUid: string | undefined,
+  oldEvent: { start: Date; end: Date } | null | undefined,
+): Interval[] {
+  if (!rescheduleUid) return busy;
+  return busy.filter((iv) => {
+    if (iv.uid && iv.uid === rescheduleUid) return false;
+    if (oldEvent && iv.start.getTime() < oldEvent.end.getTime() && iv.end.getTime() > oldEvent.start.getTime()) {
+      return false;
+    }
+    return true;
+  });
 }
 
 export function computeSlots(

@@ -1352,9 +1352,15 @@
                 const preName = params.get("name") || localStorage.getItem("booking-name") || "";
                 const preEmail = params.get("email") || localStorage.getItem("booking-email") || "";
                 const isReschedule = !!params.get("reschedule");
+                // Rescheduling moves the existing booking in place — name,
+                // email and notes are already known and re-asking just adds
+                // confusion. Only fall back to showing them if the reschedule
+                // link is somehow missing name/email to submit.
+                const showIdentityFields = !isReschedule || !preName || !preEmail;
                 container.innerHTML = `
         <form class="booking-form" id="bForm" novalidate>
           ${isReschedule ? `<p class="reschedule-notice">${T.rescheduleNotice}</p>` : ""}
+          ${showIdentityFields ? `
           <div class="form-group"><label for="fName">${T.labelName}</label><input type="text" id="fName" placeholder="${T.phName}" value="${preName.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group"><label for="fEmail">${T.labelEmail}</label><input type="email" id="fEmail" placeholder="${T.phEmail}" value="${preEmail.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group">
@@ -1369,47 +1375,50 @@
               </button>
               <span class="ai-status-text" id="aiStatusText"></span>
             </div>
-          </div>
+          </div>` : ""}
           <div id="fErr" class="form-error" role="alert" style="display:none"></div>
           <button type="submit" class="btn-confirm" id="btnOk">${isReschedule ? T.confirmReschedule : T.confirm}</button>
           <p class="privacy-note">${T.privacyNote}</p>
         </form>`;
                 collapseSlots(slot);
-                document.getElementById("fNotes").value = localStorage.getItem("booking-notes") || "";
-                document.getElementById("fName").addEventListener("input", (e) => localStorage.setItem("booking-name", e.target.value));
-                document.getElementById("fEmail").addEventListener("input", (e) => localStorage.setItem("booking-email", e.target.value));
-                document.getElementById("fNotes").addEventListener("input", (e) => localStorage.setItem("booking-notes", e.target.value));
 
-                const aiToggle = document.getElementById("aiToggle");
-                const aiStatusText = document.getElementById("aiStatusText");
-                let aiEnabled = localStorage.getItem("booking-ai-title") !== "off";
-                const renderAiToggle = () => {
-                    aiToggle.classList.toggle("off", !aiEnabled);
-                    aiToggle.setAttribute("aria-pressed", String(aiEnabled));
-                    const hint = aiEnabled ? T.aiToggleOnHint : T.aiToggleOffHint;
-                    aiToggle.title = hint;
-                    aiToggle.setAttribute("aria-label", hint);
-                    aiStatusText.textContent = aiEnabled ? T.aiStatusOn : T.aiStatusOff;
-                };
-                renderAiToggle();
-                aiToggle.addEventListener("click", () => {
-                    aiEnabled = !aiEnabled;
-                    localStorage.setItem("booking-ai-title", aiEnabled ? "on" : "off");
+                let aiEnabled = true;
+                if (showIdentityFields) {
+                    document.getElementById("fNotes").value = localStorage.getItem("booking-notes") || "";
+                    document.getElementById("fName").addEventListener("input", (e) => localStorage.setItem("booking-name", e.target.value));
+                    document.getElementById("fEmail").addEventListener("input", (e) => localStorage.setItem("booking-email", e.target.value));
+                    document.getElementById("fNotes").addEventListener("input", (e) => localStorage.setItem("booking-notes", e.target.value));
+
+                    const aiToggle = document.getElementById("aiToggle");
+                    const aiStatusText = document.getElementById("aiStatusText");
+                    aiEnabled = localStorage.getItem("booking-ai-title") !== "off";
+                    const renderAiToggle = () => {
+                        aiToggle.classList.toggle("off", !aiEnabled);
+                        aiToggle.setAttribute("aria-pressed", String(aiEnabled));
+                        const hint = aiEnabled ? T.aiToggleOnHint : T.aiToggleOffHint;
+                        aiToggle.title = hint;
+                        aiToggle.setAttribute("aria-label", hint);
+                        aiStatusText.textContent = aiEnabled ? T.aiStatusOn : T.aiStatusOff;
+                    };
                     renderAiToggle();
-                });
+                    aiToggle.addEventListener("click", () => {
+                        aiEnabled = !aiEnabled;
+                        localStorage.setItem("booking-ai-title", aiEnabled ? "on" : "off");
+                        renderAiToggle();
+                    });
+                }
                 document
                     .getElementById("bForm")
                     .addEventListener("submit", async (e) => {
                         e.preventDefault();
-                        const name = document
-                            .getElementById("fName")
-                            .value.trim();
-                        const email = document
-                            .getElementById("fEmail")
-                            .value.trim();
-                        const notes = document
-                            .getElementById("fNotes")
-                            .value.trim();
+                        const fNotes = document.getElementById("fNotes");
+                        const name = showIdentityFields
+                            ? document.getElementById("fName").value.trim()
+                            : preName;
+                        const email = showIdentityFields
+                            ? document.getElementById("fEmail").value.trim()
+                            : preEmail;
+                        const notes = fNotes ? fNotes.value.trim() : "";
                         const err = document.getElementById("fErr"),
                             btn = document.getElementById("btnOk");
                         err.style.display = "none";

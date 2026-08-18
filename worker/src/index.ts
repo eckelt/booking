@@ -1,7 +1,7 @@
 import type { Env, Interval } from "./types.js";
 import { SlotUnavailableError } from "./types.js";
-import { fetchBusy, deleteEvent } from "./caldav.js";
-import { workingDayWindow, computeSlots } from "./availability.js";
+import { fetchBusy, deleteEvent, getEvent } from "./caldav.js";
+import { workingDayWindow, computeSlots, excludeMovingEvent } from "./availability.js";
 import { validateBookingRequest, createBooking } from "./booking.js";
 import { generateJitsiUrl } from "./jitsi.js";
 
@@ -177,10 +177,13 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
   // same way /api/book does — otherwise this listing and the booking it
   // feeds disagree on where slot boundaries fall (the old event's buffer can
   // shift where a free gap starts), and a slot offered here can come back
-  // "no longer available" when actually submitted.
+  // "no longer available" when actually submitted. Looks the event up too
+  // (not just uid-matching busy intervals) so the exclusion still works even
+  // if a CalDAV response doesn't carry the uid on an expanded VEVENT.
   const rescheduleUid = url.searchParams.get("reschedule")?.trim();
   if (rescheduleUid && /^[\w-]+$/.test(rescheduleUid)) {
-    allBusy = allBusy.filter((iv) => iv.uid !== rescheduleUid);
+    const oldEvent = await getEvent(env, rescheduleUid).catch(() => null);
+    allBusy = excludeMovingEvent(allBusy, rescheduleUid, oldEvent);
   }
 
   const slots = [];

@@ -162,13 +162,26 @@ describe("generateSlots", () => {
   });
 
   it("excludes partial slots at end of interval", () => {
-    // 90 min window, 60 min slot → 1 slot, 30 min leftover
+    // 90 min window, 60 min slot, 30-min grid → two slots (07:00 and 07:30
+    // starts), neither of which leaves a partial (< 60 min) slot dangling.
     const free: Interval[] = [{
       start: D("2026-06-08T07:00:00Z"),
       end: D("2026-06-08T08:30:00Z"),
     }];
     const slots = generateSlots(free, MS(60));
-    expect(slots).toHaveLength(1);
+    expect(slots).toHaveLength(2);
+    expect(slots[0]!.start).toEqual(D("2026-06-08T07:00:00Z"));
+    expect(slots[1]!.start).toEqual(D("2026-06-08T07:30:00Z"));
+  });
+
+  it("60-min slots can start on the half hour, not just on the hour", () => {
+    const free: Interval[] = [{
+      start: D("2026-06-08T09:00:00Z"),
+      end: D("2026-06-08T11:00:00Z"),
+    }];
+    const slots = generateSlots(free, MS(60));
+    const starts = slots.map((s) => s.start.toISOString());
+    expect(starts).toContain("2026-06-08T09:30:00.000Z");
   });
 
   it("includes slot when end exactly matches interval end", () => {
