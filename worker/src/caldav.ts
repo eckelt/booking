@@ -95,7 +95,7 @@ export async function getEvent(
   env: Env,
   uid: string,
   fetcher: typeof fetch = fetch
-): Promise<{ title: string; start: Date; end: Date } | null> {
+): Promise<{ title: string; start: Date; end: Date; notes: string } | null> {
   const url = calendarUrl(env, env.CALDAV_CALENDAR_NILS) + `${uid}.ics`;
   const res = await fetcher(url, {
     method: "GET",
@@ -117,7 +117,26 @@ export async function getEvent(
   const summaryLine = getIcalLine(vevent, "SUMMARY");
   const title = summaryLine ? unescapeIcalText(getIcalValue(summaryLine)) : "";
 
-  return { title, start: interval.start, end: interval.end };
+  const descLine = getIcalLine(vevent, "DESCRIPTION");
+  const notes = descLine ? parseOwnDescriptionNotes(getIcalValue(descLine)) : "";
+
+  return { title, start: interval.start, end: interval.end, notes };
+}
+
+// Pull the original booker's note back out of a DESCRIPTION we generated
+// ourselves (see buildIcal): "Notes: <text>\nName: …\nEmail: …\nBooked via …".
+// Only understands that exact shape — good enough since this only ever reads
+// back an event this code wrote, e.g. so a reschedule can keep the note
+// instead of blanking it when the (now hidden) notes field submits empty.
+function parseOwnDescriptionNotes(description: string): string {
+  const prefix = "Notes: ";
+  const marker = "\\nName: ";
+  if (!description.startsWith(prefix)) return "";
+  const rest = description.slice(prefix.length);
+  const idx = rest.indexOf(marker);
+  if (idx === -1) return "";
+  const notes = rest.slice(0, idx).replace(/\\n/g, "\n").trim();
+  return notes === "—" ? "" : notes;
 }
 
 export function buildIcal(params: {

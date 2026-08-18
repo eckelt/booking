@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { fetchBusy, parseMultiStatusIntervals, buildIcal } from "../src/caldav.js";
 import { ConflictError } from "../src/types.js";
-import { putEvent } from "../src/caldav.js";
+import { putEvent, getEvent } from "../src/caldav.js";
 import type { Env } from "../src/types.js";
 
 const mockEnv: Env = {
@@ -189,6 +189,50 @@ describe("putEvent", () => {
     await expect(
       putEvent(mockEnv, "uid", "ical", mockFetch)
     ).rejects.toThrow("500");
+  });
+});
+
+describe("getEvent", () => {
+  // Round-trips through the real buildIcal() so this proves getEvent() can
+  // actually read back what the app itself writes — title AND notes —
+  // which a reschedule move needs to keep both when no new notes are given.
+  function icalFor(notes: string): string {
+    return buildIcal({
+      uid: "old-meeting-uid",
+      start: new Date("2026-06-08T07:00:00Z"),
+      end: new Date("2026-06-08T07:30:00Z"),
+      title: "Radtour am Krupunder See",
+      name: "Waldemar",
+      notes,
+      jitsiUrl: "https://join.ecke.lt/old-meeting-uid",
+      ownerEmail: "nils@ecke.lt",
+      ownerName: "Nils Eckelt",
+      bookerEmail: "waldemar@example.com",
+    });
+  }
+
+  it("reads back the title and notes from a real generated event", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(icalFor("Wir wollen übers Budget sprechen"), { status: 200 })
+    );
+    const event = await getEvent(mockEnv, "old-meeting-uid", mockFetch);
+    expect(event).not.toBeNull();
+    expect(event!.title).toBe("Radtour am Krupunder See");
+    expect(event!.notes).toBe("Wir wollen übers Budget sprechen");
+    expect(event!.start).toEqual(new Date("2026-06-08T07:00:00Z"));
+  });
+
+  it("returns empty notes (not the em-dash placeholder) for a notes-less event", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(icalFor(""), { status: 200 })
+    );
+    const event = await getEvent(mockEnv, "old-meeting-uid", mockFetch);
+    expect(event!.notes).toBe("");
+  });
+
+  it("returns null on 404", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    expect(await getEvent(mockEnv, "gone-uid", mockFetch)).toBeNull();
   });
 });
 

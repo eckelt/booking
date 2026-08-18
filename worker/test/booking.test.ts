@@ -146,7 +146,7 @@ describe("createBooking — reschedule", () => {
     throw new Error("no bookable weekday found in range");
   }
 
-  function icsFor(uid: string, title: string, start: Date, end: Date, omitUid = false): string {
+  function icsFor(uid: string, title: string, start: Date, end: Date, omitUid = false, notes = ""): string {
     const fmtLocal = (d: Date) => {
       const s = new Intl.DateTimeFormat("sv-SE", {
         timeZone: "Europe/Berlin",
@@ -162,6 +162,7 @@ describe("createBooking — reschedule", () => {
       `DTSTART;TZID=Europe/Berlin:${fmtLocal(start)}`,
       `DTEND;TZID=Europe/Berlin:${fmtLocal(end)}`,
       `SUMMARY:${title}`,
+      `DESCRIPTION:Notes: ${notes || "—"}\\nName: Waldemar\\nEmail: waldemar@example.com\\nBooked via book.ecke.lt`,
       "END:VEVENT", "END:VCALENDAR",
     ].join("\r\n");
   }
@@ -177,7 +178,7 @@ describe("createBooking — reschedule", () => {
   // reportOmitsUid simulates a CalDAV server that doesn't include UID on an
   // expanded/property-limited REPORT result even though it was requested.
   function makeFetcher(
-    oldEvent?: "404" | "error" | { uid: string; title: string; start: Date; end: Date },
+    oldEvent?: "404" | "error" | { uid: string; title: string; start: Date; end: Date; notes?: string },
     reportBusyOverride?: { start: Date; end: Date },
     reportOmitsUid = false,
   ) {
@@ -202,7 +203,10 @@ describe("createBooking — reschedule", () => {
       if (method === "GET") {
         if (!oldEvent || oldEvent === "404") return new Response(null, { status: 404 });
         if (oldEvent === "error") return new Response(null, { status: 500 });
-        return new Response(icsFor(oldEvent.uid, oldEvent.title, oldEvent.start, oldEvent.end), { status: 200 });
+        return new Response(
+          icsFor(oldEvent.uid, oldEvent.title, oldEvent.start, oldEvent.end, false, oldEvent.notes ?? ""),
+          { status: 200 }
+        );
       }
       if (method === "PUT") return new Response(null, { status: 201 });
       if (method === "DELETE") return new Response(null, { status: 204 });
@@ -239,6 +243,31 @@ describe("createBooking — reschedule", () => {
 
     const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
     expect(deleteCalls).toHaveLength(0);
+  });
+
+  it("keeps the old notes instead of blanking them when the (hidden) notes field submits empty", async () => {
+    const oldStart = pickBookableStart(2);
+    const req = validateBookingRequest({
+      start: pickBookableStart(5).toISOString(),
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+      rescheduleUid: "old-meeting-uid",
+      // no notes — this is what the frontend now always submits on reschedule
+    });
+    const fetcher = makeFetcher({
+      uid: "old-meeting-uid",
+      title: "Radtour am Krupunder See",
+      start: oldStart,
+      end: new Date(oldStart.getTime() + 30 * 60000),
+      notes: "Wir wollen übers Budget sprechen",
+    });
+
+    await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    const putCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    const body = String((putCalls[0]![1] as RequestInit).body);
+    expect(body).toContain("Notes: Wir wollen übers Budget sprechen");
   });
 
   it("still lets you reschedule to the exact same slot even when REPORT doesn't carry the uid at all", async () => {

@@ -116,12 +116,18 @@ export async function createBooking(
 
   let uid = "";
   let title = "";
+  // The reschedule form has no notes field (it's known from the original
+  // booking), so req.notes always submits empty on a move — fall back to
+  // the old event's own notes instead of silently blanking them.
+  let notes = req.notes ?? "";
 
   if (oldEvent) {
     // True move: overwrite the same resource in place. Keep the existing
-    // title unless the booker gave new notes to generate a fresh one from.
+    // title/notes unless the booker gave new notes to generate fresh ones from.
     uid = req.rescheduleUid!;
-    title = (req.notes?.trim() ? names[0]!.title : oldEvent.title) || names[0]!.title;
+    const hasNewNotes = !!req.notes?.trim();
+    title = (hasNewNotes ? names[0]!.title : oldEvent.title) || names[0]!.title;
+    notes = hasNewNotes ? req.notes : (oldEvent.notes || "");
     const link = `https://join.ecke.lt/${uid}`;
     const ownerJitsiUrl = env.HOST_JOIN_SECRET ? `${link}?host=${env.HOST_JOIN_SECRET}` : link;
     const icalForOwner = buildIcal({
@@ -130,7 +136,7 @@ export async function createBooking(
       end,
       title,
       name: req.name,
-      notes: req.notes ?? "",
+      notes,
       jitsiUrl: ownerJitsiUrl,
       ownerEmail: env.OWNER_EMAIL,
       ownerName: env.OWNER_NAME,
@@ -156,7 +162,7 @@ export async function createBooking(
         end,
         title: cand.title,
         name: req.name,
-        notes: req.notes ?? "",
+        notes,
         jitsiUrl: ownerJitsiUrl,
         ownerEmail: env.OWNER_EMAIL,
         ownerName: env.OWNER_NAME,
@@ -193,7 +199,7 @@ export async function createBooking(
     end,
     title,
     name: req.name,
-    notes: req.notes ?? "",
+    notes,
     jitsiUrl,
     ownerEmail: env.OWNER_EMAIL,
     ownerName: env.OWNER_NAME,
@@ -206,7 +212,7 @@ export async function createBooking(
       end,
       name: req.name,
       bookerEmail: req.email,
-      notes: req.notes ?? "",
+      notes,
       jitsiUrl,
       icalAttachment: icalForBooker,
       cancelUrl: `https://book.ecke.lt/api/cancel?uid=${uid}`,
