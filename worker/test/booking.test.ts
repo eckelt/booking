@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { validateBookingRequest, createBooking } from "../src/booking.js";
 import { workingDayWindow } from "../src/availability.js";
+import { RescheduleTargetGoneError } from "../src/types.js";
 import type { Env } from "../src/types.js";
 
 describe("validateBookingRequest", () => {
@@ -114,6 +115,29 @@ describe("validateBookingRequest", () => {
     });
     expect(truthyIgnored.aiTitle).toBe(true);
   });
+
+  it("allows duration/name/email to be omitted when rescheduling — they're derived from the event", () => {
+    const req = validateBookingRequest({ start: future, rescheduleUid: "old-uid" });
+    expect(req.duration).toBe(0);
+    expect(req.name).toBe("");
+    expect(req.email).toBe("");
+    expect(req.rescheduleUid).toBe("old-uid");
+  });
+
+  it("still requires duration/name/email for a fresh (non-reschedule) booking", () => {
+    expect(() => validateBookingRequest({ start: future })).toThrow("duration");
+    expect(() => validateBookingRequest({ start: future, duration: 30 })).toThrow("name");
+    expect(() => validateBookingRequest({ start: future, duration: 30, name: "Jane" })).toThrow("email");
+  });
+
+  it("still validates duration/email format when a reschedule does supply them", () => {
+    expect(() =>
+      validateBookingRequest({ start: future, rescheduleUid: "old-uid", duration: 45 })
+    ).toThrow("duration");
+    expect(() =>
+      validateBookingRequest({ start: future, rescheduleUid: "old-uid", email: "not-an-email" })
+    ).toThrow("email");
+  });
 });
 
 // Reschedule should move the existing CalDAV resource in place (same uid,
@@ -146,7 +170,10 @@ describe("createBooking — reschedule", () => {
     throw new Error("no bookable weekday found in range");
   }
 
-  function icsFor(uid: string, title: string, start: Date, end: Date, omitUid = false, notes = ""): string {
+  function icsFor(
+    uid: string, title: string, start: Date, end: Date, omitUid = false, notes = "",
+    name = "Waldemar", email = "waldemar@example.com",
+  ): string {
     const fmtLocal = (d: Date) => {
       const s = new Intl.DateTimeFormat("sv-SE", {
         timeZone: "Europe/Berlin",
@@ -162,7 +189,8 @@ describe("createBooking — reschedule", () => {
       `DTSTART;TZID=Europe/Berlin:${fmtLocal(start)}`,
       `DTEND;TZID=Europe/Berlin:${fmtLocal(end)}`,
       `SUMMARY:${title}`,
-      `DESCRIPTION:Notes: ${notes || "—"}\\nName: Waldemar\\nEmail: waldemar@example.com\\nBooked via book.ecke.lt`,
+      `DESCRIPTION:Notes: ${notes || "—"}\\nName: ${name}\\nEmail: ${email}\\nBooked via book.ecke.lt`,
+      `ATTENDEE;CN=${name};SCHEDULE-AGENT=NONE:mailto:${email}`,
       "END:VEVENT", "END:VCALENDAR",
     ].join("\r\n");
   }
@@ -178,7 +206,7 @@ describe("createBooking — reschedule", () => {
   // reportOmitsUid simulates a CalDAV server that doesn't include UID on an
   // expanded/property-limited REPORT result even though it was requested.
   function makeFetcher(
-    oldEvent?: "404" | "error" | { uid: string; title: string; start: Date; end: Date; notes?: string },
+    oldEvent?: "404" | "error" | { uid: string; title: string; start: Date; end: Date; notes?: string; name?: string; email?: string },
     reportBusyOverride?: { start: Date; end: Date },
     reportOmitsUid = false,
   ) {
@@ -204,7 +232,10 @@ describe("createBooking — reschedule", () => {
         if (!oldEvent || oldEvent === "404") return new Response(null, { status: 404 });
         if (oldEvent === "error") return new Response(null, { status: 500 });
         return new Response(
-          icsFor(oldEvent.uid, oldEvent.title, oldEvent.start, oldEvent.end, false, oldEvent.notes ?? ""),
+          icsFor(
+            oldEvent.uid, oldEvent.title, oldEvent.start, oldEvent.end, false,
+            oldEvent.notes ?? "", oldEvent.name ?? "Waldemar", oldEvent.email ?? "waldemar@example.com",
+          ),
           { status: 200 }
         );
       }
@@ -243,6 +274,49 @@ describe("createBooking — reschedule", () => {
 
     const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
     expect(deleteCalls).toHaveLength(0);
+  });
+
+  it("reschedules from a bare {rescheduleUid, start} — no duration/name/email needed in the link", async () => {
+    const oldStart = pickBookableStart(2);
+    const oldEnd = new Date(oldStart.getTime() + 60 * 60000); // a 60-min original booking
+    const newStart = pickBookableStart(5);
+    const req = validateBookingRequest({
+      start: newStart.toISOString(),
+      rescheduleUid: "old-meeting-uid",
+      // no duration, name, email, or notes — exactly what the simplified link submits
+    });
+    const fetcher = makeFetcher({
+      uid: "old-meeting-uid",
+      title: "Radtour am Krupunder See",
+      start: oldStart,
+      end: oldEnd,
+      name: "Björn",
+      email: "bjoern@example.com",
+    });
+
+    const result = await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    expect(result.uid).toBe("old-meeting-uid");
+    // duration derived from the old event (60 min), not left at 0
+    expect(new Date(result.end).getTime() - new Date(result.start).getTime()).toBe(60 * 60000);
+
+    const putCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    const body = String((putCalls[0]![1] as RequestInit).body);
+    expect(body).toContain("CN=Björn");
+    expect(body).toContain("mailto:bjoern@example.com");
+  });
+
+  it("throws RescheduleTargetGoneError when the old event is gone and nothing was submitted to fall back on", async () => {
+    const req = validateBookingRequest({
+      start: pickBookableStart(2).toISOString(),
+      rescheduleUid: "gone-uid",
+      // bare link, and the target no longer exists — nothing to build a booking from
+    });
+    const fetcher = makeFetcher("404");
+
+    await expect(
+      createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch)
+    ).rejects.toBeInstanceOf(RescheduleTargetGoneError);
   });
 
   it("keeps the old notes instead of blanking them when the (hidden) notes field submits empty", async () => {

@@ -1,5 +1,5 @@
 import type { Env, Interval } from "./types.js";
-import { SlotUnavailableError } from "./types.js";
+import { SlotUnavailableError, RescheduleTargetGoneError } from "./types.js";
 import { fetchBusy, deleteEvent, getEvent } from "./caldav.js";
 import { workingDayWindow, computeSlots, excludeMovingEvent } from "./availability.js";
 import { validateBookingRequest, createBooking } from "./booking.js";
@@ -58,6 +58,9 @@ export default {
     try {
       if (url.pathname === "/api/slots" && request.method === "GET") {
         return await handleSlots(url, env);
+      }
+      if (url.pathname === "/api/reschedule-info" && request.method === "GET") {
+        return await handleRescheduleInfo(url, env);
       }
       if (url.pathname === "/api/book" && request.method === "POST") {
         return await handleBook(request, env, ctx);
@@ -213,6 +216,22 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
   return json({ slots });
 }
 
+// Lets the frontend bootstrap a reschedule link (just "?reschedule=<uid>",
+// no duration/name/email) with the one thing it needs before it can even
+// show a calendar: how long the slot grid should be.
+async function handleRescheduleInfo(url: URL, env: Env): Promise<Response> {
+  const uid = url.searchParams.get("uid")?.trim();
+  if (!uid || !/^[\w-]+$/.test(uid)) {
+    return json({ error: "invalid uid" }, 400);
+  }
+  const event = await getEvent(env, uid).catch(() => null);
+  if (!event) {
+    return json({ error: "not found" }, 404);
+  }
+  const durationMin = Math.round((event.end.getTime() - event.start.getTime()) / 60000);
+  return json({ duration: durationMin });
+}
+
 async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
   if (!(await checkRateLimit(env, ip, "book", 5, 3600))) {
@@ -239,6 +258,9 @@ async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Pr
   } catch (err) {
     if (err instanceof SlotUnavailableError) {
       return json({ error: "slot no longer available" }, 409);
+    }
+    if (err instanceof RescheduleTargetGoneError) {
+      return json({ error: "this booking could no longer be found — please make a new booking" }, 410);
     }
     throw err;
   }

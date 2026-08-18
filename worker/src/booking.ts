@@ -1,5 +1,5 @@
 import type { BookingRequest, BookingResult, Env, Interval } from "./types.js";
-import { SlotUnavailableError, ConflictError } from "./types.js";
+import { SlotUnavailableError, ConflictError, RescheduleTargetGoneError } from "./types.js";
 import { fetchBusy, putEvent, deleteEvent, getEvent, buildIcal } from "./caldav.js";
 import { sendEmails } from "./email.js";
 import { generateUid } from "./jitsi.js";
@@ -14,8 +14,24 @@ export function validateBookingRequest(body: unknown): BookingRequest {
   if (!body || typeof body !== "object") throw new Error("invalid body");
   const b = body as Record<string, unknown>;
 
-  const duration = Number(b["duration"]);
-  if (!SUPPORTED_DURATIONS.includes(duration as 30 | 60)) {
+  const rescheduleUid = b["rescheduleUid"] !== undefined
+    ? String(b["rescheduleUid"]).trim()
+    : undefined;
+  if (rescheduleUid && !/^[\w-]+$/.test(rescheduleUid)) {
+    throw new Error("invalid rescheduleUid");
+  }
+
+  // A reschedule link carries only the uid — duration, name, and email are
+  // derived from the event being moved, so these three are optional here
+  // (0 / "" means "not supplied") whenever rescheduleUid is set. A fresh
+  // booking still requires all three up front as before.
+  let duration = 0;
+  if (b["duration"] !== undefined) {
+    duration = Number(b["duration"]);
+    if (!SUPPORTED_DURATIONS.includes(duration as 30 | 60)) {
+      throw new Error("duration must be 30 or 60");
+    }
+  } else if (!rescheduleUid) {
     throw new Error("duration must be 30 or 60");
   }
 
@@ -31,19 +47,20 @@ export function validateBookingRequest(body: unknown): BookingRequest {
   if (startDate > maxDate) throw new Error("start is too far in the future");
 
   const name = String(b["name"] ?? "").trim();
-  if (!name || name.length > 100) throw new Error("name is required and must be ≤100 chars");
+  if (name) {
+    if (name.length > 100) throw new Error("name is required and must be ≤100 chars");
+  } else if (!rescheduleUid) {
+    throw new Error("name is required and must be ≤100 chars");
+  }
 
   const email = String(b["email"] ?? "").trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("invalid email");
+  if (email) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("invalid email");
+  } else if (!rescheduleUid) {
+    throw new Error("invalid email");
+  }
 
   const notes = String(b["notes"] ?? "").slice(0, 1000);
-
-  const rescheduleUid = b["rescheduleUid"] !== undefined
-    ? String(b["rescheduleUid"]).trim()
-    : undefined;
-  if (rescheduleUid && !/^[\w-]+$/.test(rescheduleUid)) {
-    throw new Error("invalid rescheduleUid");
-  }
 
   const lang = b["lang"] === "en" ? "en" : "de";
 
@@ -59,8 +76,6 @@ export async function createBooking(
   fetcher: typeof fetch = fetch
 ): Promise<BookingResult> {
   const start = new Date(req.start);
-  const durationMs = req.duration * 60 * 1000;
-  const end = new Date(start.getTime() + durationMs);
 
   // A reschedule looks up its existing event by the uid from the link so the
   // move can reuse that same CalDAV resource — same uid, same Jitsi room/link
@@ -76,14 +91,35 @@ export async function createBooking(
       })
     : null;
 
+  // A true move never lets duration/name/email drift from the event being
+  // moved — "everything stays the same except the time" — so these come
+  // from oldEvent whenever it was found, ignoring anything submitted.
+  // Only the "target vanished, falling back to a fresh booking" path uses
+  // what the (identity-fields-shown) form actually submitted.
+  const durationMin = oldEvent
+    ? Math.round((oldEvent.end.getTime() - oldEvent.start.getTime()) / 60000)
+    : req.duration;
+  const name = oldEvent ? (oldEvent.name || req.name) : req.name;
+  const email = oldEvent ? (oldEvent.email || req.email) : req.email;
+
+  if (!SUPPORTED_DURATIONS.includes(durationMin as 30 | 60) || !name || !email) {
+    // A reschedule link with nothing left to fall back on (event gone, and
+    // the request carried no duration/name/email of its own).
+    if (req.rescheduleUid) throw new RescheduleTargetGoneError();
+    throw new Error("duration, name, and email are required");
+  }
+
+  const durationMs = durationMin * 60 * 1000;
+  const end = new Date(start.getTime() + durationMs);
+
   // Kick off title generation now so its latency overlaps the CalDAV
   // availability fetch below. generateMeetingNames never rejects. A booker
   // who opted out of AI title generation skips the model call entirely.
   const namesPromise = req.aiTitle === false
-    ? Promise.resolve(fallbackNames(req.name, req.lang ?? "de"))
+    ? Promise.resolve(fallbackNames(name, req.lang ?? "de"))
     : generateMeetingNames(
         env,
-        { name: req.name, notes: req.notes ?? "", lang: req.lang ?? "de" },
+        { name, notes: req.notes ?? "", lang: req.lang ?? "de" },
         fetcher,
       );
 
@@ -135,12 +171,12 @@ export async function createBooking(
       start,
       end,
       title,
-      name: req.name,
+      name,
       notes,
       jitsiUrl: ownerJitsiUrl,
       ownerEmail: env.OWNER_EMAIL,
       ownerName: env.OWNER_NAME,
-      bookerEmail: req.email,
+      bookerEmail: email,
     });
     await putEvent(env, uid, icalForOwner, fetcher, { overwrite: true });
   } else {
@@ -161,12 +197,12 @@ export async function createBooking(
         start,
         end,
         title: cand.title,
-        name: req.name,
+        name,
         notes,
         jitsiUrl: ownerJitsiUrl,
         ownerEmail: env.OWNER_EMAIL,
         ownerName: env.OWNER_NAME,
-        bookerEmail: req.email,
+        bookerEmail: email,
       });
       try {
         await putEvent(env, cand.slug, icalForOwner, fetcher);
@@ -192,32 +228,33 @@ export async function createBooking(
   const jitsiUrl = `https://join.ecke.lt/${uid}`;
 
   // Email is best-effort — a failure must not roll back the booking
-  const durationPath = req.duration === 60 ? "60min" : "30min";
   const icalForBooker = buildIcal({
     uid,
     start,
     end,
     title,
-    name: req.name,
+    name,
     notes,
     jitsiUrl,
     ownerEmail: env.OWNER_EMAIL,
     ownerName: env.OWNER_NAME,
-    bookerEmail: req.email,
+    bookerEmail: email,
   });
   ctx.waitUntil(
     sendEmails(env, {
       uid,
       start,
       end,
-      name: req.name,
-      bookerEmail: req.email,
+      name,
+      bookerEmail: email,
       notes,
       jitsiUrl,
       icalAttachment: icalForBooker,
       cancelUrl: `https://book.ecke.lt/api/cancel?uid=${uid}`,
-      rescheduleUrl: `https://book.ecke.lt/${durationPath}/?reschedule=${uid}&name=${encodeURIComponent(req.name)}&email=${encodeURIComponent(req.email)}`,
-    }).catch((err) => console.error(`[email] FAILED uid=${uid} to=${req.email} error=${err?.message ?? err}`))
+      // Just the uid — duration, name, and email travel with the event
+      // itself (see getEvent()'s ATTENDEE/duration derivation), not the link.
+      rescheduleUrl: `https://book.ecke.lt/?reschedule=${uid}`,
+    }).catch((err) => console.error(`[email] FAILED uid=${uid} to=${email} error=${err?.message ?? err}`))
   );
 
   return {

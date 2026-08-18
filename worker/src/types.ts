@@ -25,6 +25,10 @@ export interface Env {
 
 export class SlotUnavailableError extends Error {}
 export class ConflictError extends Error {}
+// A reschedule link's uid no longer resolves to a real event (already
+// cancelled/gone) AND the request didn't carry enough of its own
+// duration/name/email to fall back to a fresh booking.
+export class RescheduleTargetGoneError extends Error {}
 
 export interface Interval {
   start: Date;
@@ -37,7 +41,11 @@ export interface Interval {
 
 export interface BookingRequest {
   start: string;
+  // 0 when omitted — a true reschedule derives it from the event being
+  // moved instead. Required (and validated as 30|60) for a fresh booking.
   duration: number;
+  // "" when omitted — a true reschedule derives it from the event being
+  // moved instead. Required for a fresh booking.
   name: string;
   email: string;
   notes: string;

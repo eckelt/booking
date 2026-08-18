@@ -95,7 +95,7 @@ export async function getEvent(
   env: Env,
   uid: string,
   fetcher: typeof fetch = fetch
-): Promise<{ title: string; start: Date; end: Date; notes: string } | null> {
+): Promise<{ title: string; start: Date; end: Date; notes: string; name: string; email: string } | null> {
   const url = calendarUrl(env, env.CALDAV_CALENDAR_NILS) + `${uid}.ics`;
   const res = await fetcher(url, {
     method: "GET",
@@ -120,7 +120,22 @@ export async function getEvent(
   const descLine = getIcalLine(vevent, "DESCRIPTION");
   const notes = descLine ? parseOwnDescriptionNotes(getIcalValue(descLine)) : "";
 
-  return { title, start: interval.start, end: interval.end, notes };
+  const attendee = parseOwnAttendee(vevent);
+
+  return { title, start: interval.start, end: interval.end, notes, name: attendee?.name ?? "", email: attendee?.email ?? "" };
+}
+
+// Pull the booker's name/email back out of the ATTENDEE line we generated
+// ourselves (see buildIcal): ATTENDEE;CN=<name>;SCHEDULE-AGENT=NONE:mailto:<email>.
+// So a reschedule link only needs a uid — name and email travel with the
+// event instead of the URL.
+function parseOwnAttendee(ical: string): { name: string; email: string } | null {
+  const line = getIcalLine(ical, "ATTENDEE");
+  if (!line) return null;
+  const cn = /CN=([^;:]+)/.exec(line)?.[1];
+  const email = /mailto:([^\s;]+)/i.exec(line)?.[1];
+  if (!cn || !email) return null;
+  return { name: unescapeIcalText(cn), email };
 }
 
 // Pull the original booker's note back out of a DESCRIPTION we generated

@@ -54,6 +54,8 @@ describe("handleSlots + createBooking — reschedule slot-grid consistency", () 
       `DTSTART;TZID=Europe/Berlin:${fmtLocal(start)}`,
       `DTEND;TZID=Europe/Berlin:${fmtLocal(end)}`,
       "SUMMARY:Termin mit Waldemar",
+      "DESCRIPTION:Notes: —\\nName: Waldemar\\nEmail: waldemar@example.com\\nBooked via book.ecke.lt",
+      "ATTENDEE;CN=Waldemar;SCHEDULE-AGENT=NONE:mailto:waldemar@example.com",
       "END:VEVENT", "END:VCALENDAR",
     ].join("\r\n");
   }
@@ -145,6 +147,66 @@ describe("handleSlots + createBooking — reschedule slot-grid consistency", () 
 
     expect(bookRes.status).toBe(201);
     expect(bookBody.error).toBeUndefined();
+    expect(bookBody.uid).toBe("old-meeting-uid");
+  });
+
+  it("/api/reschedule-info returns the event's duration so the frontend can bootstrap a bare ?reschedule=<uid> link", async () => {
+    const oldStart = pickBookableStart(2);
+    const oldEnd = new Date(oldStart.getTime() + 60 * 60000); // 60-min original
+    stubFetch("old-meeting-uid", oldStart, oldEnd);
+
+    const res = await worker.fetch(
+      new Request("https://book.ecke.lt/api/reschedule-info?uid=old-meeting-uid"),
+      mockEnv, fakeCtx,
+    );
+    const body = await res.json() as { duration?: number; error?: string };
+
+    expect(res.status).toBe(200);
+    expect(body.duration).toBe(60);
+  });
+
+  it("/api/reschedule-info 404s for a uid that no longer exists", async () => {
+    const oldStart = pickBookableStart(2);
+    stubFetch("some-other-uid", oldStart, new Date(oldStart.getTime() + 30 * 60000));
+
+    const res = await worker.fetch(
+      new Request("https://book.ecke.lt/api/reschedule-info?uid=gone-uid"),
+      mockEnv, fakeCtx,
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("end-to-end: a bare reschedule link (just uid + new start, no duration/name/email) round-trips through /api/reschedule-info and /api/book", async () => {
+    const oldStart = pickBookableStart(2);
+    const oldEnd = new Date(oldStart.getTime() + 30 * 60000);
+    stubFetch("old-meeting-uid", oldStart, oldEnd);
+
+    const infoRes = await worker.fetch(
+      new Request("https://book.ecke.lt/api/reschedule-info?uid=old-meeting-uid"),
+      mockEnv, fakeCtx,
+    );
+    const { duration } = await infoRes.json() as { duration: number };
+
+    const dayIso = oldStart.toISOString().slice(0, 10);
+    const slotsRes = await worker.fetch(
+      new Request(`https://book.ecke.lt/api/slots?duration=${duration}&from=${dayIso}&to=${dayIso}&reschedule=old-meeting-uid`),
+      mockEnv, fakeCtx,
+    );
+    const { slots } = await slotsRes.json() as { slots: { start: string }[] };
+    const picked = slots[0]!;
+
+    const bookRes = await worker.fetch(
+      new Request("https://book.ecke.lt/api/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Exactly what the simplified link submits: no duration, name, or email.
+        body: JSON.stringify({ start: picked.start, rescheduleUid: "old-meeting-uid" }),
+      }),
+      mockEnv, fakeCtx,
+    );
+    const bookBody = await bookRes.json() as { error?: string; uid?: string };
+
+    expect(bookRes.status).toBe(201);
     expect(bookBody.uid).toBe("old-meeting-uid");
   });
 });

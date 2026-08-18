@@ -742,7 +742,11 @@
             // disagree on where slot boundaries fall and a picked slot can come
             // back "no longer available" even though nothing else changed.
             const RESCHEDULE_UID = new URLSearchParams(location.search).get("reschedule") || "";
-            const rescheduleParam = RESCHEDULE_UID ? `&reschedule=${encodeURIComponent(RESCHEDULE_UID)}` : "";
+            let rescheduleParam = RESCHEDULE_UID ? `&reschedule=${encodeURIComponent(RESCHEDULE_UID)}` : "";
+            // True once a reschedule can actually proceed: either an older
+            // email's link already carried ?duration= (legacy format), or the
+            // new bare ?reschedule=<uid> link's duration lookup succeeded.
+            let RESCHEDULE_VALID = false;
 
             const LANGS = {
                 en: {
@@ -1351,12 +1355,11 @@
                 const params = new URLSearchParams(location.search);
                 const preName = params.get("name") || localStorage.getItem("booking-name") || "";
                 const preEmail = params.get("email") || localStorage.getItem("booking-email") || "";
-                const isReschedule = !!params.get("reschedule");
+                const isReschedule = RESCHEDULE_VALID;
                 // Rescheduling moves the existing booking in place — name,
-                // email and notes are already known and re-asking just adds
-                // confusion. Only fall back to showing them if the reschedule
-                // link is somehow missing name/email to submit.
-                const showIdentityFields = !isReschedule || !preName || !preEmail;
+                // email and notes are already known server-side (derived from
+                // the event itself) and re-asking just adds confusion.
+                const showIdentityFields = !isReschedule;
                 container.innerHTML = `
         <form class="booking-form" id="bForm" novalidate>
           ${isReschedule ? `<p class="reschedule-notice">${T.rescheduleNotice}</p>` : ""}
@@ -1412,49 +1415,48 @@
                     .addEventListener("submit", async (e) => {
                         e.preventDefault();
                         const fNotes = document.getElementById("fNotes");
-                        const name = showIdentityFields
-                            ? document.getElementById("fName").value.trim()
-                            : preName;
-                        const email = showIdentityFields
-                            ? document.getElementById("fEmail").value.trim()
-                            : preEmail;
                         const notes = fNotes ? fNotes.value.trim() : "";
                         const err = document.getElementById("fErr"),
                             btn = document.getElementById("btnOk");
                         err.style.display = "none";
-                        if (!name) {
-                            err.textContent = T.errName;
-                            err.style.display = "block";
-                            return;
+
+                        let name, email;
+                        if (showIdentityFields) {
+                            name = document.getElementById("fName").value.trim();
+                            email = document.getElementById("fEmail").value.trim();
+                            if (!name) {
+                                err.textContent = T.errName;
+                                err.style.display = "block";
+                                return;
+                            }
+                            if (!email || !email.includes("@")) {
+                                err.textContent = T.errEmail;
+                                err.style.display = "block";
+                                return;
+                            }
                         }
-                        if (!email || !email.includes("@")) {
-                            err.textContent = T.errEmail;
-                            err.style.display = "block";
-                            return;
-                        }
+
                         btn.disabled = true;
                         btn.textContent = T.confirming;
                         const balloon = animateBalloon(btn);
                         try {
-                            const rescheduleUid =
-                                new URLSearchParams(location.search).get(
-                                    "reschedule",
-                                ) || undefined;
+                            // A valid reschedule submits only the uid + new
+                            // time — duration/name/email travel with the
+                            // event itself, not this request.
                             const res = await fetch(`${API}/book`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
-                                    duration: DURATION,
                                     start: slot.start,
-                                    name,
-                                    email,
                                     notes,
                                     lang:
                                         document.documentElement.lang === "en"
                                             ? "en"
                                             : "de",
                                     aiTitle: aiEnabled,
-                                    ...(rescheduleUid && { rescheduleUid }),
+                                    ...(isReschedule
+                                        ? { rescheduleUid: RESCHEDULE_UID }
+                                        : { duration: DURATION, name, email }),
                                 }),
                             });
                             const data = await res.json();
@@ -1605,10 +1607,32 @@
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
             applyLang(_sl || (LANGS[_al] ? _al : "en"));
-            if (DURATION) {
+
+            function enterBookLayout() {
                 document.getElementById("durStep").hidden = true;
                 document.getElementById("bookLayout").removeAttribute("hidden");
                 prefetchAllSlots();
+            }
+
+            if (RESCHEDULE_UID && !DURATION) {
+                // Simplified link: just the uid, no ?duration=. Look up how
+                // long the original booking was before we can show a calendar.
+                fetch(`${API}/reschedule-info?uid=${encodeURIComponent(RESCHEDULE_UID)}`)
+                    .then((r) => (r.ok ? r.json() : Promise.reject()))
+                    .then((data) => {
+                        DURATION = data.duration;
+                        RESCHEDULE_VALID = true;
+                        enterBookLayout();
+                    })
+                    .catch(() => {
+                        // Booking's gone, or a stale link — fall back to a
+                        // normal fresh booking instead of a dead end.
+                        rescheduleParam = "";
+                        history.replaceState(null, "", location.pathname);
+                    });
+            } else {
+                if (RESCHEDULE_UID) RESCHEDULE_VALID = true; // legacy link already carried ?duration=
+                if (DURATION) enterBookLayout();
             }
         </script>
         <footer style="text-align:center;padding:1.25rem 1rem 2rem;font-size:0.75rem;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:0.4rem;flex-wrap:wrap;">
