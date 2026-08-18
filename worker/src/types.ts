@@ -29,6 +29,10 @@ export class ConflictError extends Error {}
 export interface Interval {
   start: Date;
   end: Date;
+  // The source event's CalDAV UID, when known. Lets a reschedule exclude its
+  // own old slot from the busy check by identity instead of by comparing
+  // timestamps parsed through two different code paths (GET vs REPORT).
+  uid?: string;
 }
 
 export interface BookingRequest {

@@ -106,6 +106,12 @@ describe("parseMultiStatusIntervals", () => {
     // 09:00 Berlin = 07:00 UTC
     expect(intervals[0]!.start).toEqual(new Date("2026-06-09T07:00:00Z"));
   });
+
+  it("captures the event's uid, so a reschedule can exclude its own old slot by identity", () => {
+    const ical = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:felix-grothkopp\r\nDTSTART:20260608T070000Z\r\nDTEND:20260608T073000Z\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    const intervals = parseMultiStatusIntervals(makeMultiStatus(ical));
+    expect(intervals[0]!.uid).toBe("felix-grothkopp");
+  });
 });
 
 describe("fetchBusy", () => {
@@ -126,6 +132,15 @@ describe("fetchBusy", () => {
     expect(url).toContain("Nils");
     expect((options.headers as Record<string, string>)["Authorization"]).toMatch(/^Basic /);
     expect(options.method).toBe("REPORT");
+  });
+
+  it("requests the UID property so busy intervals can be matched back to their event", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response("<multistatus></multistatus>", { status: 207 })
+    );
+    await fetchBusy(mockEnv, "Nils", new Date("2026-06-08T00:00:00Z"), new Date("2026-06-08T23:59:59Z"), mockFetch);
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(options.body as string).toContain('<c:prop name="UID"/>');
   });
 
   it("requests server-side recurrence expansion for the range", async () => {

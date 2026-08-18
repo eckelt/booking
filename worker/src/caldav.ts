@@ -199,6 +199,7 @@ function buildReportXml(start: Date, end: Date): string {
     <c:calendar-data>
       <c:comp name="VCALENDAR">
         <c:comp name="VEVENT">
+          <c:prop name="UID"/>
           <c:prop name="DTSTART"/>
           <c:prop name="DTEND"/>
           <c:prop name="DURATION"/>
@@ -278,7 +279,11 @@ function parseVevent(ical: string): Interval | null {
   }
 
   if (!end) return null;
-  return { start, end };
+
+  const uidLine = getIcalLine(ical, "UID");
+  const uid = uidLine ? getIcalValue(uidLine) : undefined;
+
+  return { start, end, uid };
 }
 
 // Parse a full iCal property line like:

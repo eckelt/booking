@@ -168,12 +168,32 @@ describe("createBooking — reschedule", () => {
 
   // oldEvent: undefined/"404" ⇒ GET returns 404 (already gone).
   // "error" ⇒ GET returns a 500 (lookup genuinely failed, unknown state).
-  // object ⇒ GET returns that event's ICS.
-  function makeFetcher(oldEvent?: "404" | "error" | { uid: string; title: string; start: Date; end: Date }) {
+  // object ⇒ GET returns that event's ICS, and — since it's still on the
+  // calendar during the reschedule's own availability check — the REPORT
+  // busy query reports it too, exactly like the real Fastmail calendar would.
+  // reportBusyOverride optionally reports slightly different timestamps for
+  // that same uid via REPORT than what GET returns for it, simulating the
+  // two CalDAV code paths not agreeing on the exact instant byte-for-byte.
+  function makeFetcher(
+    oldEvent?: "404" | "error" | { uid: string; title: string; start: Date; end: Date },
+    reportBusyOverride?: { start: Date; end: Date },
+  ) {
     return vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? "GET";
       if (method === "REPORT") {
-        return new Response(`<?xml version="1.0"?><multistatus xmlns="DAV:"></multistatus>`, { status: 200 });
+        const hasOldEvent = oldEvent && oldEvent !== "404" && oldEvent !== "error";
+        const calendarData = hasOldEvent
+          ? icsFor(
+              oldEvent.uid,
+              oldEvent.title,
+              reportBusyOverride?.start ?? oldEvent.start,
+              reportBusyOverride?.end ?? oldEvent.end,
+            )
+          : "";
+        const body = calendarData
+          ? `<?xml version="1.0"?><multistatus xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"><response><propstat><prop><C:calendar-data>${calendarData}</C:calendar-data></prop></propstat></response></multistatus>`
+          : `<?xml version="1.0"?><multistatus xmlns="DAV:"></multistatus>`;
+        return new Response(body, { status: 200 });
       }
       if (method === "GET") {
         if (!oldEvent || oldEvent === "404") return new Response(null, { status: 404 });
@@ -215,6 +235,58 @@ describe("createBooking — reschedule", () => {
 
     const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
     expect(deleteCalls).toHaveLength(0);
+  });
+
+  it("does not block the reschedule with the old event's own (buffered) slot on the same day", async () => {
+    // Same-day move to the very next 30-min slot: without excluding the old
+    // event from the busy check, its own 5-min buffer would overlap this
+    // slot and the reschedule would wrongly fail as unavailable.
+    const oldStart = pickBookableStart(2);
+    const oldEnd = new Date(oldStart.getTime() + 30 * 60000);
+    const newStart = oldEnd; // immediately adjacent grid slot
+
+    const req = validateBookingRequest({
+      start: newStart.toISOString(),
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+      rescheduleUid: "old-meeting-uid",
+    });
+    const fetcher = makeFetcher({
+      uid: "old-meeting-uid",
+      title: "Radtour am Krupunder See",
+      start: oldStart,
+      end: oldEnd,
+    });
+
+    const result = await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    expect(result.uid).toBe("old-meeting-uid");
+    expect(result.start).toBe(newStart.toISOString());
+  });
+
+  it("still excludes the old event's busy slot even if REPORT reports slightly different timestamps for it than GET (matches by uid, not by timestamp)", async () => {
+    const oldStart = pickBookableStart(2);
+    const oldEnd = new Date(oldStart.getTime() + 30 * 60000);
+    const newStart = oldEnd;
+
+    const req = validateBookingRequest({
+      start: newStart.toISOString(),
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+      rescheduleUid: "old-meeting-uid",
+    });
+    const fetcher = makeFetcher(
+      { uid: "old-meeting-uid", title: "Radtour am Krupunder See", start: oldStart, end: oldEnd },
+      // REPORT reports the same event a couple of seconds off from what GET
+      // says — same uid, timestamps don't match exactly.
+      { start: new Date(oldStart.getTime() + 2000), end: new Date(oldEnd.getTime() + 2000) },
+    );
+
+    const result = await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    expect(result.uid).toBe("old-meeting-uid");
   });
 
   it("regenerates the title instead of reusing the old one when new notes are given", async () => {

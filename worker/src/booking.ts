@@ -98,12 +98,12 @@ export async function createBooking(
   ]);
 
   let allBusy: Interval[] = [...nilsBusy, ...ohanaBusy];
-  if (oldEvent) {
+  if (req.rescheduleUid) {
     // The event being moved is still on the calendar during this check —
-    // exclude its own slot so a reschedule can't be blocked by itself.
-    allBusy = allBusy.filter(
-      (iv) => !(iv.start.getTime() === oldEvent.start.getTime() && iv.end.getTime() === oldEvent.end.getTime())
-    );
+    // exclude it by uid (not by matching timestamps parsed through two
+    // different code paths) so a reschedule can never be blocked by its own
+    // old slot. Works even if the getEvent() lookup above failed.
+    allBusy = allBusy.filter((iv) => iv.uid !== req.rescheduleUid);
   }
 
   const window = workingDayWindow(start);
