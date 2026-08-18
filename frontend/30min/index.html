@@ -2,7 +2,12 @@
 <html>
     <head>
         <meta charset="UTF-8" />
-        <meta http-equiv="refresh" content="0;url=/?duration=30" />
+        <script>
+            var params = new URLSearchParams(location.search);
+            params.set("duration", "30");
+            location.replace("/?" + params.toString());
+        </script>
+        <noscript><meta http-equiv="refresh" content="0;url=/?duration=30" /></noscript>
         <link rel="canonical" href="https://book.ecke.lt/?duration=30" />
     </head>
     <body></body>

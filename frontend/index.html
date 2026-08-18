@@ -613,6 +613,13 @@
                 text-align: center;
                 margin-top: 0.5rem;
             }
+            .reschedule-notice {
+                font-size: 0.8rem;
+                color: var(--primary);
+                background: color-mix(in srgb, var(--primary) 10%, transparent);
+                border-radius: 0.5rem;
+                padding: 0.5rem 0.75rem;
+            }
             .privacy-note a {
                 color: var(--muted);
             }
@@ -759,7 +766,9 @@
                     aiToggleOnHint: "AI title generation is on — your note is used to create a short meeting title. Click to turn off.",
                     aiToggleOffHint: "AI title generation is off — a plain title will be used instead. Click to turn on.",
                     confirm: "Confirm booking",
+                    confirmReschedule: "Confirm new time",
                     confirming: "Booking…",
+                    rescheduleNotice: "Rescheduling your existing booking to this time.",
                     errName: "Please enter your name.",
                     errEmail: "Please enter a valid email.",
                     errGeneric: "Something went wrong.",
@@ -806,7 +815,9 @@
                     aiToggleOnHint: "KI-Titelerstellung aktiviert — aus deiner Notiz wird ein kurzer Besprechungstitel erstellt. Klicken zum Deaktivieren.",
                     aiToggleOffHint: "KI-Titelerstellung deaktiviert — es wird ein einfacher Titel verwendet. Klicken zum Aktivieren.",
                     confirm: "Buchung bestätigen",
+                    confirmReschedule: "Neue Zeit bestätigen",
                     confirming: "Wird gebucht…",
+                    rescheduleNotice: "Du verschiebst deine bestehende Buchung auf diese Zeit.",
                     errName: "Bitte gib deinen Namen ein.",
                     errEmail: "Bitte gib eine gültige E-Mail ein.",
                     errGeneric: "Etwas ist schiefgelaufen.",
@@ -854,7 +865,9 @@
                     aiToggleOnHint: "Generación de título por IA activada — tu nota se usa para crear un título breve para la reunión. Haz clic para desactivarla.",
                     aiToggleOffHint: "Generación de título por IA desactivada — se usará un título simple. Haz clic para activarla.",
                     confirm: "Confirmar reserva",
+                    confirmReschedule: "Confirmar nuevo horario",
                     confirming: "Reservando…",
+                    rescheduleNotice: "Estás reprogramando tu reserva existente a este horario.",
                     errName: "Por favor, introduce tu nombre.",
                     errEmail: "Por favor, introduce un correo válido.",
                     errGeneric: "Algo salió mal.",
@@ -1335,6 +1348,7 @@
                 const isReschedule = !!params.get("reschedule");
                 container.innerHTML = `
         <form class="booking-form" id="bForm" novalidate>
+          ${isReschedule ? `<p class="reschedule-notice">${T.rescheduleNotice}</p>` : ""}
           <div class="form-group"><label for="fName">${T.labelName}</label><input type="text" id="fName" placeholder="${T.phName}" value="${preName.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group"><label for="fEmail">${T.labelEmail}</label><input type="email" id="fEmail" placeholder="${T.phEmail}" value="${preEmail.replace(/"/g, "&quot;")}" required /></div>
           <div class="form-group">
@@ -1351,7 +1365,7 @@
             </div>
           </div>
           <div id="fErr" class="form-error" role="alert" style="display:none"></div>
-          <button type="submit" class="btn-confirm" id="btnOk">${isReschedule ? T.confirm : T.confirm}</button>
+          <button type="submit" class="btn-confirm" id="btnOk">${isReschedule ? T.confirmReschedule : T.confirm}</button>
           <p class="privacy-note">${T.privacyNote}</p>
         </form>`;
                 collapseSlots(slot);
@@ -1455,7 +1469,7 @@
                         } catch (ex) {
                             balloon.crash();
                             btn.disabled = false;
-                            btn.textContent = T.confirm;
+                            btn.textContent = isReschedule ? T.confirmReschedule : T.confirm;
                             err.textContent = ex.message || T.errGeneric;
                             err.style.display = "block";
                         }

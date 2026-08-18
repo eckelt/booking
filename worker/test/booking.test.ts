@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { validateBookingRequest } from "../src/booking.js";
+import { describe, it, expect, vi } from "vitest";
+import { validateBookingRequest, createBooking } from "../src/booking.js";
+import { workingDayWindow } from "../src/availability.js";
+import type { Env } from "../src/types.js";
 
 describe("validateBookingRequest", () => {
   const future = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -111,5 +113,79 @@ describe("validateBookingRequest", () => {
       start: future, duration: 30, name: "Jane", email: "jane@example.com", aiTitle: "false",
     });
     expect(truthyIgnored.aiTitle).toBe(true);
+  });
+});
+
+// Reproduces the reported "reschedule creates a second booking instead of
+// moving the existing one" incident: does createBooking actually delete the
+// old CalDAV event when rescheduleUid is set?
+describe("createBooking — reschedule", () => {
+  const mockEnv = {
+    OWNER_NAME: "Nils Eckelt",
+    OWNER_EMAIL: "nils@ecke.lt",
+    CALDAV_USERNAME: "nils@ecke.lt",
+    CALDAV_PASSWORD: "secret",
+    CALDAV_CALENDAR_NILS: "Nils",
+    CALDAV_CALENDAR_OHANA: "Ohana",
+    SMTP_USERNAME: "nils@ecke.lt",
+    SMTP_PASSWORD: "smtp-secret",
+  } as Env;
+
+  const fakeCtx = {
+    waitUntil: (p: Promise<unknown>) => { p.catch(() => {}); },
+  } as unknown as ExecutionContext;
+
+  function pickBookableStart(): Date {
+    for (let i = 2; i <= 10; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const w = workingDayWindow(d);
+      if (w) return w.start;
+    }
+    throw new Error("no bookable weekday found in range");
+  }
+
+  function makeFetcher() {
+    return vi.fn(async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      if (method === "REPORT") {
+        return new Response(`<?xml version="1.0"?><multistatus xmlns="DAV:"></multistatus>`, { status: 200 });
+      }
+      if (method === "PUT") return new Response(null, { status: 201 });
+      if (method === "DELETE") return new Response(null, { status: 204 });
+      throw new Error(`unexpected fetch ${method} ${url}`);
+    });
+  }
+
+  it("deletes the old event when rescheduleUid is set", async () => {
+    const req = validateBookingRequest({
+      start: pickBookableStart().toISOString(),
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+      rescheduleUid: "old-meeting-uid",
+    });
+    const fetcher = makeFetcher();
+
+    await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
+    expect(deleteCalls).toHaveLength(1);
+    expect(String(deleteCalls[0]![0])).toContain("old-meeting-uid.ics");
+  });
+
+  it("does not attempt a delete for a plain (non-reschedule) booking", async () => {
+    const req = validateBookingRequest({
+      start: pickBookableStart().toISOString(),
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+    });
+    const fetcher = makeFetcher();
+
+    await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
+    expect(deleteCalls).toHaveLength(0);
   });
 });
