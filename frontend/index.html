@@ -737,6 +737,12 @@
             })();
             const API = "https://book.ecke.lt/api";
             const TZ = "Europe/Berlin";
+            // Read once at load: when rescheduling, the slot listing must exclude
+            // the old event too (same as the /book endpoint does), or the two can
+            // disagree on where slot boundaries fall and a picked slot can come
+            // back "no longer available" even though nothing else changed.
+            const RESCHEDULE_UID = new URLSearchParams(location.search).get("reschedule") || "";
+            const rescheduleParam = RESCHEDULE_UID ? `&reschedule=${encodeURIComponent(RESCHEDULE_UID)}` : "";
 
             const LANGS = {
                 en: {
@@ -1170,7 +1176,7 @@
                 if (slotCache[iso] !== undefined) return slotCache[iso];
                 try {
                     const res = await fetch(
-                        `${API}/slots?duration=${DURATION}&from=${encodeURIComponent(iso)}&to=${encodeURIComponent(iso)}`,
+                        `${API}/slots?duration=${DURATION}&from=${encodeURIComponent(iso)}&to=${encodeURIComponent(iso)}${rescheduleParam}`,
                     );
                     if (!res.ok) throw new Error();
                     slotCache[iso] = (await res.json()).slots || [];
@@ -1190,7 +1196,7 @@
                 const endISO = formatDateISO(endDate);
                 try {
                     const res = await fetch(
-                        `${API}/slots?duration=${DURATION}&from=${encodeURIComponent(startISO)}&to=${encodeURIComponent(endISO)}`,
+                        `${API}/slots?duration=${DURATION}&from=${encodeURIComponent(startISO)}&to=${encodeURIComponent(endISO)}${rescheduleParam}`,
                     );
                     if (!res.ok) throw new Error();
                     const all = (await res.json()).slots || [];

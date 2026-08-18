@@ -173,6 +173,16 @@ async function handleSlots(url: URL, env: Env): Promise<Response> {
     return json({ error: "calendar unavailable" }, 500);
   }
 
+  // Rescheduling: exclude the event being moved from its own busy check, the
+  // same way /api/book does — otherwise this listing and the booking it
+  // feeds disagree on where slot boundaries fall (the old event's buffer can
+  // shift where a free gap starts), and a slot offered here can come back
+  // "no longer available" when actually submitted.
+  const rescheduleUid = url.searchParams.get("reschedule")?.trim();
+  if (rescheduleUid && /^[\w-]+$/.test(rescheduleUid)) {
+    allBusy = allBusy.filter((iv) => iv.uid !== rescheduleUid);
+  }
+
   const slots = [];
   const cursor = new Date(from);
   cursor.setHours(0, 0, 0, 0);
