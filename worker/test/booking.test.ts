@@ -116,9 +116,10 @@ describe("validateBookingRequest", () => {
   });
 });
 
-// Reproduces the reported "reschedule creates a second booking instead of
-// moving the existing one" incident: does createBooking actually delete the
-// old CalDAV event when rescheduleUid is set?
+// Reschedule should move the existing CalDAV resource in place (same uid,
+// same Jitsi room/link) instead of creating a new event and deleting the
+// old one — that create-then-delete dance is what produced the reported
+// "reschedule creates a second booking" incident.
 describe("createBooking — reschedule", () => {
   const mockEnv = {
     OWNER_NAME: "Nils Eckelt",
@@ -135,8 +136,8 @@ describe("createBooking — reschedule", () => {
     waitUntil: (p: Promise<unknown>) => { p.catch(() => {}); },
   } as unknown as ExecutionContext;
 
-  function pickBookableStart(): Date {
-    for (let i = 2; i <= 10; i++) {
+  function pickBookableStart(skipDays: number): Date {
+    for (let i = skipDays; i <= skipDays + 10; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
       const w = workingDayWindow(d);
@@ -145,11 +146,39 @@ describe("createBooking — reschedule", () => {
     throw new Error("no bookable weekday found in range");
   }
 
-  function makeFetcher() {
+  function icsFor(uid: string, title: string, start: Date, end: Date): string {
+    const fmtLocal = (d: Date) => {
+      const s = new Intl.DateTimeFormat("sv-SE", {
+        timeZone: "Europe/Berlin",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: false,
+      }).format(d);
+      return s.replace(/[-:]/g, "").replace(" ", "T");
+    };
+    return [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+      `UID:${uid}`,
+      `DTSTART;TZID=Europe/Berlin:${fmtLocal(start)}`,
+      `DTEND;TZID=Europe/Berlin:${fmtLocal(end)}`,
+      `SUMMARY:${title}`,
+      "END:VEVENT", "END:VCALENDAR",
+    ].join("\r\n");
+  }
+
+  // oldEvent: undefined/"404" ⇒ GET returns 404 (already gone).
+  // "error" ⇒ GET returns a 500 (lookup genuinely failed, unknown state).
+  // object ⇒ GET returns that event's ICS.
+  function makeFetcher(oldEvent?: "404" | "error" | { uid: string; title: string; start: Date; end: Date }) {
     return vi.fn(async (url: string, init?: RequestInit) => {
       const method = init?.method ?? "GET";
       if (method === "REPORT") {
         return new Response(`<?xml version="1.0"?><multistatus xmlns="DAV:"></multistatus>`, { status: 200 });
+      }
+      if (method === "GET") {
+        if (!oldEvent || oldEvent === "404") return new Response(null, { status: 404 });
+        if (oldEvent === "error") return new Response(null, { status: 500 });
+        return new Response(icsFor(oldEvent.uid, oldEvent.title, oldEvent.start, oldEvent.end), { status: 200 });
       }
       if (method === "PUT") return new Response(null, { status: 201 });
       if (method === "DELETE") return new Response(null, { status: 204 });
@@ -157,26 +186,104 @@ describe("createBooking — reschedule", () => {
     });
   }
 
-  it("deletes the old event when rescheduleUid is set", async () => {
+  it("moves the event in place (same uid, no delete) and keeps its title when no new notes are given", async () => {
+    const oldStart = pickBookableStart(2);
+    const newStart = pickBookableStart(5);
     const req = validateBookingRequest({
-      start: pickBookableStart().toISOString(),
+      start: newStart.toISOString(),
       duration: 30,
       name: "Waldemar",
       email: "waldemar@example.com",
       rescheduleUid: "old-meeting-uid",
     });
-    const fetcher = makeFetcher();
+    const fetcher = makeFetcher({
+      uid: "old-meeting-uid",
+      title: "Radtour am Krupunder See",
+      start: oldStart,
+      end: new Date(oldStart.getTime() + 30 * 60000),
+    });
+
+    const result = await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    expect(result.uid).toBe("old-meeting-uid");
+
+    const putCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    expect(putCalls).toHaveLength(1);
+    expect(String(putCalls[0]![0])).toContain("old-meeting-uid.ics");
+    expect((putCalls[0]![1] as RequestInit).headers).not.toHaveProperty("If-None-Match");
+    expect(String((putCalls[0]![1] as RequestInit).body)).toContain("SUMMARY:Radtour am Krupunder See");
+
+    const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
+    expect(deleteCalls).toHaveLength(0);
+  });
+
+  it("regenerates the title instead of reusing the old one when new notes are given", async () => {
+    const oldStart = pickBookableStart(2);
+    const req = validateBookingRequest({
+      start: pickBookableStart(5).toISOString(),
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+      notes: "Wir wollen übers Budget sprechen",
+      rescheduleUid: "old-meeting-uid",
+    });
+    const fetcher = makeFetcher({
+      uid: "old-meeting-uid",
+      title: "Radtour am Krupunder See",
+      start: oldStart,
+      end: new Date(oldStart.getTime() + 30 * 60000),
+    });
 
     await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
 
-    const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
-    expect(deleteCalls).toHaveLength(1);
-    expect(String(deleteCalls[0]![0])).toContain("old-meeting-uid.ics");
+    const putCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    const body = String((putCalls[0]![1] as RequestInit).body);
+    expect(body).not.toContain("Radtour am Krupunder See");
+    expect(body).toContain("SUMMARY:Termin mit Waldemar");
   });
 
-  it("does not attempt a delete for a plain (non-reschedule) booking", async () => {
+  it("falls back to a fresh booking (new uid, no delete) when the old event is already gone (404)", async () => {
     const req = validateBookingRequest({
-      start: pickBookableStart().toISOString(),
+      start: pickBookableStart(2).toISOString(),
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+      rescheduleUid: "gone-uid",
+    });
+    const fetcher = makeFetcher("404");
+
+    const result = await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    expect(result.uid).not.toBe("gone-uid");
+    const putCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    expect(putCalls).toHaveLength(1);
+    expect((putCalls[0]![1] as RequestInit).headers).toHaveProperty("If-None-Match", "*");
+
+    const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
+    expect(deleteCalls).toHaveLength(0);
+  });
+
+  it("defensively deletes the old uid when the lookup itself fails (not a confirmed 404)", async () => {
+    const req = validateBookingRequest({
+      start: pickBookableStart(2).toISOString(),
+      duration: 30,
+      name: "Waldemar",
+      email: "waldemar@example.com",
+      rescheduleUid: "unknown-state-uid",
+    });
+    const fetcher = makeFetcher("error");
+
+    const result = await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
+
+    expect(result.uid).not.toBe("unknown-state-uid");
+    const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
+    expect(deleteCalls).toHaveLength(1);
+    expect(String(deleteCalls[0]![0])).toContain("unknown-state-uid.ics");
+  });
+
+  it("does not look up or delete anything for a plain (non-reschedule) booking", async () => {
+    const req = validateBookingRequest({
+      start: pickBookableStart(2).toISOString(),
       duration: 30,
       name: "Waldemar",
       email: "waldemar@example.com",
@@ -185,7 +292,9 @@ describe("createBooking — reschedule", () => {
 
     await createBooking(mockEnv, req, fakeCtx, fetcher as unknown as typeof fetch);
 
+    const getCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "GET");
     const deleteCalls = fetcher.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === "DELETE");
+    expect(getCalls).toHaveLength(0);
     expect(deleteCalls).toHaveLength(0);
   });
 });

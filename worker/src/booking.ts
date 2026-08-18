@@ -1,6 +1,6 @@
 import type { BookingRequest, BookingResult, Env, Interval } from "./types.js";
 import { SlotUnavailableError, ConflictError } from "./types.js";
-import { fetchBusy, putEvent, deleteEvent, buildIcal } from "./caldav.js";
+import { fetchBusy, putEvent, deleteEvent, getEvent, buildIcal } from "./caldav.js";
 import { sendEmails } from "./email.js";
 import { generateUid } from "./jitsi.js";
 import { generateMeetingNames, fallbackNames } from "./title.js";
@@ -62,6 +62,20 @@ export async function createBooking(
   const durationMs = req.duration * 60 * 1000;
   const end = new Date(start.getTime() + durationMs);
 
+  // A reschedule looks up its existing event by the uid from the link so the
+  // move can reuse that same CalDAV resource — same uid, same Jitsi room/link
+  // — instead of creating a new event and deleting the old one. A lookup
+  // failure (including "already gone") just falls back to a fresh booking
+  // below, so a booking never fails on this.
+  let oldEventLookupFailed = false;
+  const oldEvent = req.rescheduleUid
+    ? await getEvent(env, req.rescheduleUid, fetcher).catch((err) => {
+        oldEventLookupFailed = true;
+        console.error(`[reschedule] failed to look up old event uid=${req.rescheduleUid} error=${err?.message ?? err}`);
+        return null;
+      })
+    : null;
+
   // Kick off title generation now so its latency overlaps the CalDAV
   // availability fetch below. generateMeetingNames never rejects. A booker
   // who opted out of AI title generation skips the model call entirely.
@@ -83,7 +97,15 @@ export async function createBooking(
     fetchBusy(env, env.CALDAV_CALENDAR_OHANA, dayStart, dayEnd, fetcher),
   ]);
 
-  const allBusy: Interval[] = [...nilsBusy, ...ohanaBusy];
+  let allBusy: Interval[] = [...nilsBusy, ...ohanaBusy];
+  if (oldEvent) {
+    // The event being moved is still on the calendar during this check —
+    // exclude its own slot so a reschedule can't be blocked by itself.
+    allBusy = allBusy.filter(
+      (iv) => !(iv.start.getTime() === oldEvent.start.getTime() && iv.end.getTime() === oldEvent.end.getTime())
+    );
+  }
+
   const window = workingDayWindow(start);
   if (!window) throw new SlotUnavailableError();
 
@@ -95,27 +117,21 @@ export async function createBooking(
 
   const names = await namesPromise;
 
-  // Try each pretty candidate (primary, then adjective variants). If every slug
-  // is somehow taken, a short random suffix on the primary is the invisible
-  // last resort so the Jitsi room and CalDAV filename stay unique.
-  const attempts: MeetingName[] = [
-    ...names,
-    { title: names[0]!.title, slug: `${names[0]!.slug}-${generateUid().slice(0, 4)}` },
-  ];
-
   let uid = "";
   let title = "";
-  for (let i = 0; i < attempts.length; i++) {
-    const cand = attempts[i]!;
-    const link = `https://join.ecke.lt/${cand.slug}`;
-    const ownerJitsiUrl = env.HOST_JOIN_SECRET
-      ? `${link}?host=${env.HOST_JOIN_SECRET}`
-      : link;
+
+  if (oldEvent) {
+    // True move: overwrite the same resource in place. Keep the existing
+    // title unless the booker gave new notes to generate a fresh one from.
+    uid = req.rescheduleUid!;
+    title = (req.notes?.trim() ? names[0]!.title : oldEvent.title) || names[0]!.title;
+    const link = `https://join.ecke.lt/${uid}`;
+    const ownerJitsiUrl = env.HOST_JOIN_SECRET ? `${link}?host=${env.HOST_JOIN_SECRET}` : link;
     const icalForOwner = buildIcal({
-      uid: cand.slug,
+      uid,
       start,
       end,
-      title: cand.title,
+      title,
       name: req.name,
       notes: req.notes ?? "",
       jitsiUrl: ownerJitsiUrl,
@@ -123,24 +139,54 @@ export async function createBooking(
       ownerName: env.OWNER_NAME,
       bookerEmail: req.email,
     });
-    try {
-      await putEvent(env, cand.slug, icalForOwner, fetcher);
-      uid = cand.slug;
-      title = cand.title;
-      break;
-    } catch (err) {
-      if (err instanceof ConflictError && i < attempts.length - 1) continue;
-      throw err;
+    await putEvent(env, uid, icalForOwner, fetcher, { overwrite: true });
+  } else {
+    // Brand-new booking (or a reschedule whose target already vanished) — try
+    // each pretty candidate (primary, then adjective variants). If every slug
+    // is somehow taken, a short random suffix on the primary is the invisible
+    // last resort so the Jitsi room and CalDAV filename stay unique.
+    const attempts: MeetingName[] = [
+      ...names,
+      { title: names[0]!.title, slug: `${names[0]!.slug}-${generateUid().slice(0, 4)}` },
+    ];
+    for (let i = 0; i < attempts.length; i++) {
+      const cand = attempts[i]!;
+      const link = `https://join.ecke.lt/${cand.slug}`;
+      const ownerJitsiUrl = env.HOST_JOIN_SECRET ? `${link}?host=${env.HOST_JOIN_SECRET}` : link;
+      const icalForOwner = buildIcal({
+        uid: cand.slug,
+        start,
+        end,
+        title: cand.title,
+        name: req.name,
+        notes: req.notes ?? "",
+        jitsiUrl: ownerJitsiUrl,
+        ownerEmail: env.OWNER_EMAIL,
+        ownerName: env.OWNER_NAME,
+        bookerEmail: req.email,
+      });
+      try {
+        await putEvent(env, cand.slug, icalForOwner, fetcher);
+        uid = cand.slug;
+        title = cand.title;
+        break;
+      } catch (err) {
+        if (err instanceof ConflictError && i < attempts.length - 1) continue;
+        throw err;
+      }
+    }
+
+    if (req.rescheduleUid && oldEventLookupFailed) {
+      // Lookup failed for an unknown reason (not a confirmed 404), so the old
+      // event might still exist — clean it up defensively rather than risk a
+      // silent duplicate. Harmless no-op if it's actually already gone.
+      await deleteEvent(env, req.rescheduleUid, fetcher).catch((err) =>
+        console.error(`[reschedule] cleanup delete failed uid=${req.rescheduleUid} error=${err?.message ?? err}`)
+      );
     }
   }
 
   const jitsiUrl = `https://join.ecke.lt/${uid}`;
-
-  if (req.rescheduleUid) {
-    await deleteEvent(env, req.rescheduleUid, fetcher).catch((err) =>
-      console.error(`[reschedule] failed to delete old event uid=${req.rescheduleUid} error=${err?.message ?? err}`)
-    );
-  }
 
   // Email is best-effort — a failure must not roll back the booking
   const durationPath = req.duration === 60 ? "60min" : "30min";

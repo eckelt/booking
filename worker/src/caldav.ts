@@ -62,7 +62,8 @@ export async function putEvent(
   env: Env,
   uid: string,
   ical: string,
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch = fetch,
+  opts: { overwrite?: boolean } = {}
 ): Promise<void> {
   const url = calendarUrl(env, env.CALDAV_CALENDAR_NILS) + `${uid}.ics`;
   const res = await fetcher(url, {
@@ -70,7 +71,11 @@ export async function putEvent(
     headers: {
       Authorization: authHeader(env),
       "Content-Type": "text/calendar; charset=utf-8",
-      "If-None-Match": "*",
+      // A plain new booking must not silently clobber an existing resource
+      // (slug collision), so it insists on creating. A reschedule move is the
+      // one case that WANTS to overwrite — same uid, same Jitsi room — so it
+      // opts in explicitly instead of relying on this default.
+      ...(opts.overwrite ? {} : { "If-None-Match": "*" }),
     },
     body: ical,
   });
@@ -80,6 +85,39 @@ export async function putEvent(
     const rbody = await res.text().catch(() => "");
     throw new Error(`CalDAV PUT failed: ${res.status} url=${url} body=${rbody.slice(0, 300)}`);
   }
+}
+
+// Look up an existing event by its known CalDAV uid — used when rescheduling
+// so the move can reuse the same resource (same uid ⇒ same Jitsi room/link)
+// instead of creating a new one and deleting the old. Returns null on 404
+// (already cancelled/gone), so the caller can fall back to a fresh booking.
+export async function getEvent(
+  env: Env,
+  uid: string,
+  fetcher: typeof fetch = fetch
+): Promise<{ title: string; start: Date; end: Date } | null> {
+  const url = calendarUrl(env, env.CALDAV_CALENDAR_NILS) + `${uid}.ics`;
+  const res = await fetcher(url, {
+    method: "GET",
+    headers: { Authorization: authHeader(env) },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const rbody = await res.text().catch(() => "");
+    throw new Error(`CalDAV GET failed: ${res.status} url=${url} body=${rbody.slice(0, 300)}`);
+  }
+
+  const ical = await res.text();
+  const [vevent] = splitVevents(ical);
+  if (!vevent) return null;
+
+  const interval = parseVevent(vevent);
+  if (!interval) return null;
+
+  const summaryLine = getIcalLine(vevent, "SUMMARY");
+  const title = summaryLine ? unescapeIcalText(getIcalValue(summaryLine)) : "";
+
+  return { title, start: interval.start, end: interval.end };
 }
 
 export function buildIcal(params: {
@@ -141,6 +179,16 @@ function escapeIcalText(s: string): string {
     .replace(/\r?\n/g, "\\n");
 }
 
+// Reverse of escapeIcalText — order matters: undo the later escape steps
+// first so a doubled backslash from the *first* step isn't unwound early.
+function unescapeIcalText(s: string): string {
+  return s
+    .replace(/\\n/g, "\n")
+    .replace(/\\,/g, ",")
+    .replace(/\\;/g, ";")
+    .replace(/\\\\/g, "\\");
+}
+
 // ── XML builders / parsers ──
 
 function buildReportXml(start: Date, end: Date): string {
@@ -195,36 +243,37 @@ function splitVevents(ical: string): string[] {
   return blocks ?? [ical];
 }
 
+// Extract a property line by name, returning the full "PROPNAME;params:VALUE" line.
+function getIcalLine(ical: string, prop: string): string | null {
+  const m = new RegExp(`^${prop}[;:][^\r\n]*`, "m").exec(ical);
+  return m ? m[0] : null;
+}
+
+function getIcalValue(line: string): string {
+  return line.slice(line.indexOf(":") + 1).trim();
+}
+
 function parseVevent(ical: string): Interval | null {
-  // Extract a property line by name, returning the full "PROPNAME;params:VALUE" line.
-  const getLine = (prop: string): string | null => {
-    const m = new RegExp(`^${prop}[;:][^\r\n]*`, "m").exec(ical);
-    return m ? m[0] : null;
-  };
+  const statusLine = getIcalLine(ical, "STATUS");
+  if (statusLine && getIcalValue(statusLine) === "CANCELLED") return null;
 
-  const getVal = (line: string): string =>
-    line.slice(line.indexOf(":") + 1).trim();
+  const transpLine = getIcalLine(ical, "TRANSP");
+  if (transpLine && getIcalValue(transpLine) === "TRANSPARENT") return null;
 
-  const statusLine = getLine("STATUS");
-  if (statusLine && getVal(statusLine) === "CANCELLED") return null;
-
-  const transpLine = getLine("TRANSP");
-  if (transpLine && getVal(transpLine) === "TRANSPARENT") return null;
-
-  const dtStartLine = getLine("DTSTART");
+  const dtStartLine = getIcalLine(ical, "DTSTART");
   if (!dtStartLine) return null;
 
   const start = parseIcalDateLine(dtStartLine);
   if (!start) return null;
 
   let end: Date | null = null;
-  const dtEndLine = getLine("DTEND");
+  const dtEndLine = getIcalLine(ical, "DTEND");
   if (dtEndLine) {
     end = parseIcalDateLine(dtEndLine);
   } else {
-    const durLine = getLine("DURATION");
+    const durLine = getIcalLine(ical, "DURATION");
     if (durLine) {
-      end = new Date(start.getTime() + parseDuration(getVal(durLine)));
+      end = new Date(start.getTime() + parseDuration(getIcalValue(durLine)));
     }
   }
 
