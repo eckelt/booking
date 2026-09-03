@@ -132,7 +132,9 @@ export async function getEvent(
 function parseOwnAttendee(ical: string): { name: string; email: string } | null {
   const line = getIcalLine(ical, "ATTENDEE");
   if (!line) return null;
-  const cn = /CN=([^;:]+)/.exec(line)?.[1];
+  // CN holds an escapeIcalText()'d value, so it can contain "\;" / "\," — read
+  // up to the first *unescaped* ";" (or ":") rather than the first raw one.
+  const cn = /CN=((?:\\.|[^;:\\])*)/.exec(line)?.[1];
   const email = /mailto:([^\s;]+)/i.exec(line)?.[1];
   if (!cn || !email) return null;
   return { name: unescapeIcalText(cn), email };
@@ -150,7 +152,7 @@ function parseOwnDescriptionNotes(description: string): string {
   const rest = description.slice(prefix.length);
   const idx = rest.indexOf(marker);
   if (idx === -1) return "";
-  const notes = rest.slice(0, idx).replace(/\\n/g, "\n").trim();
+  const notes = unescapeIcalText(rest.slice(0, idx)).trim();
   return notes === "—" ? "" : notes;
 }
 
@@ -183,6 +185,14 @@ export function buildIcal(params: {
   const dtStart = fmtLocal(params.start);
   const dtEnd = fmtLocal(params.end);
 
+  // Booker-supplied text (notes, name) is untrusted: a bare newline, ";", ","
+  // or "\" would otherwise end or split the property line and make Fastmail
+  // reject the whole PUT (a 500 for the booker). escapeIcalText collapses each
+  // to its RFC 5545 escape so the value stays on one logical line. The literal
+  // "\\n" separators below are written verbatim into the ICS on purpose —
+  // parseOwnDescriptionNotes() reads the note back out along them.
+  const cn = (s: string) => escapeIcalText(s.replace(/[\r\n]+/g, " "));
+
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -194,9 +204,9 @@ export function buildIcal(params: {
     `DTEND;TZID=Europe/Berlin:${dtEnd}`,
     `SUMMARY:${escapeIcalText(params.title)}`,
     `LOCATION:${params.jitsiUrl}`,
-    `DESCRIPTION:Notes: ${params.notes || "—"}\\nName: ${params.name}\\nEmail: ${params.bookerEmail}\\nBooked via book.ecke.lt`,
-    `ORGANIZER;CN=${params.ownerName};SCHEDULE-AGENT=NONE:mailto:${params.ownerEmail}`,
-    `ATTENDEE;CN=${params.name};SCHEDULE-AGENT=NONE:mailto:${params.bookerEmail}`,
+    `DESCRIPTION:Notes: ${escapeIcalText(params.notes || "—")}\\nName: ${escapeIcalText(params.name)}\\nEmail: ${params.bookerEmail}\\nBooked via book.ecke.lt`,
+    `ORGANIZER;CN=${cn(params.ownerName)};SCHEDULE-AGENT=NONE:mailto:${params.ownerEmail}`,
+    `ATTENDEE;CN=${cn(params.name)};SCHEDULE-AGENT=NONE:mailto:${params.bookerEmail}`,
     `X-JITSI-URL:${params.jitsiUrl}`,
     "END:VEVENT",
     "END:VCALENDAR",

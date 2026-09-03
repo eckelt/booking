@@ -230,6 +230,15 @@ describe("getEvent", () => {
     expect(event!.notes).toBe("");
   });
 
+  it("round-trips a multi-line note with semicolons and commas", async () => {
+    const original = "Zeile eins\nZeile zwei; mit Komma, und Semikolon";
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(icalFor(original), { status: 200 })
+    );
+    const event = await getEvent(mockEnv, "old-meeting-uid", mockFetch);
+    expect(event!.notes).toBe(original);
+  });
+
   it("returns null on 404", async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
     expect(await getEvent(mockEnv, "gone-uid", mockFetch)).toBeNull();
@@ -272,5 +281,44 @@ describe("buildIcal", () => {
       bookerEmail: "felix@example.com",
     });
     expect(ical).toContain("SUMMARY:Termin mit Felix\\, dem Ketchup-Fan\\; kurz");
+  });
+
+  it("keeps a multi-line note on one DESCRIPTION line (no raw newline breaks the ICS)", () => {
+    const ical = buildIcal({
+      uid: "booking-nl",
+      start: new Date("2026-06-08T07:00:00Z"),
+      end: new Date("2026-06-08T07:30:00Z"),
+      title: "Sync",
+      name: "Michael Ryshakow",
+      notes: 'Claude throws:\n\nAgent "Implement BARISTA-356" failed: reason; detail, more',
+      jitsiUrl: "https://join.ecke.lt/booking-nl",
+      ownerEmail: "nils@ecke.lt",
+      ownerName: "Nils Eckelt",
+      bookerEmail: "michael@example.com",
+    });
+    const descLine = ical.split("\r\n").find((l) => l.startsWith("DESCRIPTION:"))!;
+    expect(descLine).toContain("Notes: Claude throws:\\n\\nAgent");
+    expect(descLine).toContain("failed: reason\\; detail\\, more");
+    // Every VEVENT line is a real property or a fold — none is stray note text.
+    for (const line of ical.split("\r\n")) {
+      expect(line).toMatch(/^([A-Z-]+[;:]| )/);
+    }
+  });
+
+  it("strips newlines from the ATTENDEE CN so a name can't break the line", () => {
+    const ical = buildIcal({
+      uid: "booking-cn",
+      start: new Date("2026-06-08T07:00:00Z"),
+      end: new Date("2026-06-08T07:30:00Z"),
+      title: "Sync",
+      name: "Sneaky\nDTSTART:19700101T000000Z",
+      notes: "",
+      jitsiUrl: "https://join.ecke.lt/booking-cn",
+      ownerEmail: "nils@ecke.lt",
+      ownerName: "Nils Eckelt",
+      bookerEmail: "sneaky@example.com",
+    });
+    expect(ical).toContain("ATTENDEE;CN=Sneaky DTSTART:19700101T000000Z;SCHEDULE-AGENT=NONE:mailto:sneaky@example.com");
+    expect(ical.split("\r\n").filter((l) => l.startsWith("DTSTART")).length).toBe(1);
   });
 });
