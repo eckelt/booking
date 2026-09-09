@@ -15,11 +15,82 @@ export interface EmailParams {
 
 const TZ = "Europe/Berlin";
 
+// The booker getting no confirmation is the worst failure mode this system
+// has, so each send is retried, the two sends are independent (one failing
+// never cancels the other), and a booker-mail failure that survives all
+// retries pages the owner so it's caught by a human instead of vanishing.
 export async function sendEmails(env: Env, params: EmailParams): Promise<void> {
-  await Promise.all([
-    sendConfirmationToBooker(env, params),
-    sendNotificationToOwner(env, params),
+  const [booker, owner] = await Promise.allSettled([
+    withRetry(() => sendConfirmationToBooker(env, params)),
+    withRetry(() => sendNotificationToOwner(env, params)),
   ]);
+
+  if (booker.status === "rejected") {
+    await sendOwnerAlert(env, params, booker.reason).catch((err) =>
+      console.error(`[email] owner alert ALSO failed uid=${params.uid} error=${errMsg(err)}`),
+    );
+  }
+
+  const failures = [booker, owner].filter(
+    (r): r is PromiseRejectedResult => r.status === "rejected",
+  );
+  if (failures.length) {
+    throw new Error(
+      `email send failed: ${failures.map((f) => errMsg(f.reason)).join("; ")}`,
+    );
+  }
+}
+
+const RETRY_ATTEMPTS = 3;
+
+// Retry a send a few times with exponential backoff. Most SMTP failures worth
+// retrying are transient (greylisting, a dropped socket, a brief 4xx); a hard
+// 5xx will just fail three times fast, which is fine.
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = RETRY_ATTEMPTS,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await sleep(500 * 2 ** i);
+    }
+  }
+  throw lastErr;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+// Last-resort heads-up to the owner when the booker's confirmation could not
+// be delivered: plain text, no attachment, so it has the best possible chance
+// of getting through on its own.
+async function sendOwnerAlert(env: Env, p: EmailParams, reason: unknown): Promise<void> {
+  await sendSmtp(env, {
+    from: `book.ecke.lt <${env.OWNER_EMAIL}>`,
+    to: env.OWNER_EMAIL,
+    subject: `[ACTION NEEDED] Confirmation to ${p.name} could not be sent`,
+    text: `The booking went through and is in your calendar, but the confirmation
+email to the booker could NOT be sent after ${RETRY_ATTEMPTS} attempts.
+
+Please contact them directly with the call details.
+
+Name:  ${p.name}
+Email: ${p.bookerEmail}
+Date:  ${formatDate(p.start)}
+Time:  ${formatTime(p.start)} – ${formatTime(p.end)} (Europe/Berlin)
+Join:  ${p.jitsiUrl}
+
+Error: ${errMsg(reason)}`,
+  });
 }
 
 async function sendConfirmationToBooker(env: Env, p: EmailParams): Promise<void> {
@@ -191,28 +262,40 @@ async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
       await writer!.write(new TextEncoder().encode(line + "\r\n"));
     };
 
-    await readResponse(); // 220 greeting
+    // Read the reply to the command just sent and fail loudly unless its
+    // status code is one we expect. Previously every reply after AUTH was
+    // read and discarded, so a 5xx rejection of the recipient or the message
+    // body (e.g. an over-long line) sailed through as a "successful" send.
+    const expectReply = async (want: number[], step: string): Promise<string> => {
+      const reply = await readResponse();
+      const code = parseInt(reply.slice(0, 3), 10);
+      if (!want.includes(code)) {
+        throw new Error(`SMTP ${step} rejected: ${reply.trim()}`);
+      }
+      return reply;
+    };
+
+    await expectReply([220], "greeting");
     await send("EHLO book.ecke.lt");
-    await readResponse(); // 250 capabilities (multi-line)
+    await expectReply([250], "EHLO");
 
     const authStr = btoa(`\x00${env.SMTP_USERNAME}\x00${env.SMTP_PASSWORD}`);
     await send(`AUTH PLAIN ${authStr}`);
-    const authReply = await readResponse();
-    if (!authReply.startsWith("235")) throw new Error(`SMTP AUTH failed: ${authReply}`);
+    await expectReply([235], "AUTH");
 
     await send(`MAIL FROM:<${env.OWNER_EMAIL}>`);
-    await readResponse();
+    await expectReply([250], "MAIL FROM");
 
     const toAddr = msg.to.match(/<(.+)>/)?.[1] ?? msg.to;
     await send(`RCPT TO:<${toAddr}>`);
-    await readResponse();
+    await expectReply([250, 251], "RCPT TO");
 
     await send("DATA");
-    await readResponse(); // 354
+    await expectReply([354], "DATA");
 
-    await send(buildRawMessage(msg));
+    await send(dotStuff(buildRawMessage(msg)));
     await send(".");
-    await readResponse(); // 250
+    await expectReply([250], "message body");
 
     await send("QUIT");
     await reader.cancel();
@@ -222,6 +305,14 @@ async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
     try { await reader?.cancel(); } catch { /* ignore */ }
     throw err;
   }
+}
+
+// SMTP dot-stuffing (RFC 5321 §4.5.2): a line inside DATA that starts with "."
+// must be sent with the dot doubled, or the receiver reads it as the
+// end-of-data terminator and truncates (or rejects) the message. Booker notes
+// flow into the text/HTML parts, so this is reachable from user input.
+export function dotStuff(data: string): string {
+  return data.replace(/^\./, "..").replace(/\r\n\./g, "\r\n..");
 }
 
 // btoa() only accepts Latin-1 (code points 0-255) and throws on anything
@@ -235,7 +326,16 @@ export function utf8ToBase64(str: string): string {
   return btoa(binary);
 }
 
-function buildRawMessage(msg: SmtpMessage): string {
+// MIME base64 must be wrapped at 76 chars per line (RFC 2045 §6.8). Emitting
+// it as one long line also blows past the SMTP 1000-octet line limit (RFC 5321
+// §4.5.3.1.6) once the .ics carries a VALARM and/or any notes — Fastmail then
+// rejects the whole message, which is exactly how booker confirmations went
+// missing with no bounce and no error.
+export function wrapBase64(b64: string): string {
+  return (b64.match(/.{1,76}/g) ?? [b64]).join("\r\n");
+}
+
+export function buildRawMessage(msg: SmtpMessage): string {
   const boundary = `boundary_${Date.now()}`;
   const lines: string[] = [
     `From: ${msg.from}`,
@@ -266,7 +366,7 @@ function buildRawMessage(msg: SmtpMessage): string {
         `Content-Disposition: attachment; filename="${msg.icsAttachment.filename}"`,
         `Content-Transfer-Encoding: base64`,
         "",
-        utf8ToBase64(msg.icsAttachment.content)
+        wrapBase64(utf8ToBase64(msg.icsAttachment.content))
       );
     }
     lines.push(`--${boundary}--`);
