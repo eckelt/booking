@@ -4,6 +4,13 @@ main = "worker/src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Workers Logs: retain console.* output and invocation metadata (~7 days,
+# queryable in the Cloudflare dashboard under Workers > booking-worker > Logs).
+# Low-traffic worker, so sample every request.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 [vars]
 OWNER_NAME = "Nils Eckelt"
 OWNER_EMAIL = "nils@ecke.lt"
