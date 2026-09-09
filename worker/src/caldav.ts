@@ -208,6 +208,13 @@ export function buildIcal(params: {
     `ORGANIZER;CN=${cn(params.ownerName)};SCHEDULE-AGENT=NONE:mailto:${params.ownerEmail}`,
     `ATTENDEE;CN=${cn(params.name)};SCHEDULE-AGENT=NONE:mailto:${params.bookerEmail}`,
     `X-JITSI-URL:${params.jitsiUrl}`,
+    // Reminder 10 minutes before the call. Stays last inside the VEVENT so the
+    // event's own DESCRIPTION line is still the first one getIcalLine() finds.
+    "BEGIN:VALARM",
+    "ACTION:DISPLAY",
+    `DESCRIPTION:${escapeIcalText(params.title)}`,
+    "TRIGGER:-PT10M",
+    "END:VALARM",
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");

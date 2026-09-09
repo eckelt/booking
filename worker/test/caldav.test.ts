@@ -267,6 +267,25 @@ describe("buildIcal", () => {
     expect(ical).toContain("END:VEVENT");
   });
 
+  it("adds a 10-minute-before display reminder inside the VEVENT", () => {
+    const ical = buildIcal({
+      uid: "booking-123",
+      start: new Date("2026-06-08T07:00:00Z"),
+      end: new Date("2026-06-08T07:30:00Z"),
+      title: "Meeting with Jane Doe",
+      name: "Jane Doe",
+      notes: "Hello",
+      jitsiUrl: "https://meet.jit.si/booking-123",
+      ownerEmail: "nils@ecke.lt",
+      ownerName: "Nils Eckelt",
+      bookerEmail: "jane@example.com",
+    });
+    expect(ical).toContain("BEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Meeting with Jane Doe\r\nTRIGGER:-PT10M\r\nEND:VALARM");
+    // VALARM is nested in the VEVENT, before its END.
+    expect(ical.indexOf("BEGIN:VALARM")).toBeGreaterThan(ical.indexOf("BEGIN:VEVENT"));
+    expect(ical.indexOf("END:VALARM")).toBeLessThan(ical.indexOf("END:VEVENT"));
+  });
+
   it("escapes commas and semicolons in the title", () => {
     const ical = buildIcal({
       uid: "booking-9",
