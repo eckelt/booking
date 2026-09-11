@@ -48,11 +48,30 @@ describe("parseMultiStatusIntervals", () => {
     expect(parseMultiStatusIntervals(makeMultiStatus(ical))).toHaveLength(0);
   });
 
-  it("handles all-day DATE events as blocking full day UTC", () => {
+  // All-day entries are informational, not a commitment for the whole day —
+  // e.g. a synced "Kita geschlossen" reminder (DTSTART:20260914,
+  // DTEND:20260916, no TRANSP) used to read as one giant busy block and blank
+  // out every slot on both days it spanned, real free afternoons included.
+  it("does not treat a single-day all-day DATE event as busy", () => {
     const ical = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20260608\r\nDTEND:20260609\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    expect(parseMultiStatusIntervals(makeMultiStatus(ical))).toHaveLength(0);
+  });
+
+  it("does not treat a multi-day all-day DATE event (e.g. 'Kita geschlossen') as busy", () => {
+    const ical = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20260914\r\nDTEND:20260916\r\nSUMMARY:Kita geschlossen\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    expect(parseMultiStatusIntervals(makeMultiStatus(ical))).toHaveLength(0);
+  });
+
+  it("does not treat VALUE=DATE all-day events as busy", () => {
+    const ical = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20260608\r\nDTEND;VALUE=DATE:20260609\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    expect(parseMultiStatusIntervals(makeMultiStatus(ical))).toHaveLength(0);
+  });
+
+  it("still treats a timed event on that same day as busy", () => {
+    const ical = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20260914T070000Z\r\nDTEND:20260914T083000Z\r\nEND:VEVENT\r\nEND:VCALENDAR`;
     const intervals = parseMultiStatusIntervals(makeMultiStatus(ical));
     expect(intervals).toHaveLength(1);
-    expect(intervals[0]!.start).toEqual(new Date("2026-06-08T00:00:00Z"));
+    expect(intervals[0]!.start).toEqual(new Date("2026-09-14T07:00:00Z"));
   });
 
   it("derives end from DURATION when DTEND is missing", () => {

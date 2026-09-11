@@ -315,6 +315,13 @@ function parseVevent(ical: string): Interval | null {
   const dtStartLine = getIcalLine(ical, "DTSTART");
   if (!dtStartLine) return null;
 
+  // All-day entries (bare date, no time component — e.g. a "Kita geschlossen"
+  // reminder synced in with DTSTART:20260914/DTEND:20260916 and no TRANSP,
+  // which RFC 5545 then defaults to OPAQUE/busy) are informational, not a
+  // commitment for the whole day. Without this they'd swallow every slot on
+  // every day they span, regardless of what's actually free that day.
+  if (isAllDayDateLine(dtStartLine)) return null;
+
   const start = parseIcalDateLine(dtStartLine);
   if (!start) return null;
 
@@ -335,6 +342,12 @@ function parseVevent(ical: string): Interval | null {
   const uid = uidLine ? getIcalValue(uidLine) : undefined;
 
   return { start, end, uid };
+}
+
+// True for a bare date value with no time component, e.g. "DTSTART:20260608"
+// or "DTSTART;VALUE=DATE:20260608" — the all-day form.
+function isAllDayDateLine(line: string): boolean {
+  return /^\d{8}$/.test(getIcalValue(line));
 }
 
 // Parse a full iCal property line like:
