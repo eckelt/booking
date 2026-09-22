@@ -88,3 +88,25 @@ Alternative: use [Resend](https://resend.com) (free tier, 3k emails/month) — r
 
 ### 3. Add 60-minute booking page
 - Create `frontend/60min/index.html` (same as 30min but with `DURATION = 60`)
+
+## feedback.ecke.lt — workshop feedback
+
+- **feedback.ecke.lt/<slug>**: one-screen feedback form for a workshop or
+  talk (rotatable thumb: up "nicht schlecht" / sideways "nicht gut, kann dir
+  aber nicht sagen warum" / down "schlecht, weil…" + text + optional name).
+  A thumbs-down requires a reason. **feedback.ecke.lt/** is a general form
+  without an event.
+- Served by `booking-worker` (host dispatch in `worker/src/index.ts`, code in
+  `worker/src/feedback.ts` + `feedback-page.ts`), route `feedback.ecke.lt/*`.
+- Each submission is mailed via the existing Fastmail SMTP to
+  `FEEDBACK_EMAIL` (`feedback@nils.ecke.lt`, in `wrangler.toml`). No database.
+- **Adding an event**: add an entry to `worker/src/feedback-events.json` and
+  push to `main`:
+  ```json
+  "bmi": { "title": "Agentic Enablement BMI Kiel", "date": "2026-09-23", "lang": "de" }
+  ```
+  `lang` (`de`/`en`) sets the form's default language (visitors can still
+  toggle). The form is open until the end of `date` + 10 days (Berlin time);
+  override per event with `"openDays": N`. Unknown slugs 404, closed ones 410.
+- **DNS**: needs a proxied record for `feedback` in the ecke.lt zone (e.g.
+  `AAAA feedback 100::`, orange cloud) so requests reach the worker route.

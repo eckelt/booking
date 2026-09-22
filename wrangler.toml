@@ -14,6 +14,7 @@ head_sampling_rate = 1
 [vars]
 OWNER_NAME = "Nils Eckelt"
 OWNER_EMAIL = "nils@ecke.lt"
+FEEDBACK_EMAIL = "feedback@nils.ecke.lt"
 CALDAV_CALENDAR_NILS = "bd0ce304-f055-4524-9273-80a7d8cee9f1"
 CALDAV_CALENDAR_OHANA = "0C692FAB-66C9-454F-B51D-D076560588DB"
 JAAS_APP_ID = "vpaas-magic-cookie-844afece898c44fe995febd212d45364"
@@ -36,4 +37,10 @@ zone_name = "ecke.lt"
 
 [[routes]]
 pattern = "join.ecke.lt/*"
+zone_name = "ecke.lt"
+
+# feedback.ecke.lt — workshop/talk feedback form (worker/src/feedback.ts).
+# Needs a proxied DNS record for "feedback" in the ecke.lt zone.
+[[routes]]
+pattern = "feedback.ecke.lt/*"
 zone_name = "ecke.lt"

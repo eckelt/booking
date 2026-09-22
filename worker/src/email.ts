@@ -214,7 +214,7 @@ function escapeHtml(s: string): string {
 
 // ── SMTP (Fastmail, port 465 implicit TLS) ────────────────────────────────────────────
 
-interface SmtpMessage {
+export interface SmtpMessage {
   from: string;
   to: string;
   replyTo?: string;
@@ -224,7 +224,7 @@ interface SmtpMessage {
   icsAttachment?: { filename: string; content: string };
 }
 
-async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
+export async function sendSmtp(env: Env, msg: SmtpMessage): Promise<void> {
   const { connect } = await import("cloudflare:sockets");
   const socket = connect({ hostname: "smtp.fastmail.com", port: 465 }, { secureTransport: "on" });
 
@@ -335,18 +335,46 @@ export function wrapBase64(b64: string): string {
   return (b64.match(/.{1,76}/g) ?? [b64]).join("\r\n");
 }
 
+// RFC 2047 encoded-word for header values with non-ASCII characters (emoji,
+// umlauts, "—"). Raw 8-bit headers are only valid with SMTPUTF8, which we
+// don't negotiate; plain ASCII passes through untouched. Each encoded-word
+// may be at most 75 chars, so longer values are split on code-point
+// boundaries into several words on folded lines.
+export function encodeHeader(value: string): string {
+  if (/^[\x20-\x7e]*$/.test(value)) return value;
+  const enc = new TextEncoder();
+  const words: string[] = [];
+  let chunk = "";
+  for (const ch of value) {
+    if (enc.encode(chunk + ch).length > 45) {
+      words.push(chunk);
+      chunk = "";
+    }
+    chunk += ch;
+  }
+  if (chunk) words.push(chunk);
+  return words.map((w) => `=?UTF-8?B?${utf8ToBase64(w)}?=`).join("\r\n ");
+}
+
 export function buildRawMessage(msg: SmtpMessage): string {
   const boundary = `boundary_${Date.now()}`;
   const lines: string[] = [
     `From: ${msg.from}`,
     `To: ${msg.to}`,
     ...(msg.replyTo ? [`Reply-To: ${msg.replyTo}`] : []),
-    `Subject: ${msg.subject}`,
+    `Subject: ${encodeHeader(msg.subject)}`,
     `MIME-Version: 1.0`,
   ];
 
   if (!msg.html && !msg.icsAttachment) {
-    lines.push("Content-Type: text/plain; charset=utf-8", "", msg.text);
+    // Base64 keeps free-form text (feedback, notes) inside the 1000-octet
+    // SMTP line limit no matter how long a single paragraph gets.
+    lines.push(
+      "Content-Type: text/plain; charset=utf-8",
+      "Content-Transfer-Encoding: base64",
+      "",
+      wrapBase64(utf8ToBase64(msg.text)),
+    );
   } else {
     lines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`, "");
     lines.push(`--${boundary}`);

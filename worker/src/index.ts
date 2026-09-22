@@ -4,6 +4,7 @@ import { fetchBusy, deleteEvent, getEvent } from "./caldav.js";
 import { workingDayWindow, computeSlots, excludeMovingEvent } from "./availability.js";
 import { validateBookingRequest, createBooking } from "./booking.js";
 import { generateJitsiUrl } from "./jitsi.js";
+import { FEEDBACK_HOST, handleFeedback } from "./feedback.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "https://book.ecke.lt",
@@ -50,6 +51,18 @@ function page(title: string, heading: string, body: string, status = 200): Respo
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    // feedback.ecke.lt is its own small app served same-origin by this
+    // worker; dispatch it before the booking API so none of that is exposed
+    // there.
+    if (url.hostname === FEEDBACK_HOST) {
+      try {
+        return await handleFeedback(request, url, env);
+      } catch (err) {
+        console.error(err);
+        return json({ error: "internal error" }, 500);
+      }
+    }
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });

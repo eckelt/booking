@@ -5,6 +5,8 @@ export interface Env {
   CALDAV_CALENDAR_OHANA: string;
   OWNER_NAME: string;
   OWNER_EMAIL: string;
+  // Where feedback.ecke.lt submissions are mailed. Falls back to OWNER_EMAIL.
+  FEEDBACK_EMAIL?: string;
   // Owner's current timezone + waking-hour bounds. Defaults to Europe/Berlin
   // (9–17), i.e. no extra restriction. Set OWNER_TZ when travelling so slots
   // never fall outside the owner's own hours.
