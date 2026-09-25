@@ -177,6 +177,9 @@ export async function createBooking(
       ownerEmail: env.OWNER_EMAIL,
       ownerName: env.OWNER_NAME,
       bookerEmail: email,
+      // Keep an already-created Meet/Teams meeting so the join link still
+      // leads to the same room after the move.
+      video: oldEvent.video,
     });
     await putEvent(env, uid, icalForOwner, fetcher, { overwrite: true });
   } else {
