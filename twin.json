@@ -287,7 +287,7 @@
           },
           {
             "id": "deploy-api",
-            "protocol": "Cloudflare API (wrangler)",
+            "protocol": "Cloudflare API (wrangler deploy)",
             "contractRef": "cloudflare-workers:deploy-api@1",
             "consumers": [
               "booking"
@@ -323,7 +323,7 @@
         "id": "github-actions",
         "vendor": "GitHub",
         "category": "vcs",
-        "consoleUrl": "https://github.com/eckelt/booking/actions",
+        "consoleUrl": "https://github.com/eckelt",
         "interfaces": [
           {
             "id": "workflows",
