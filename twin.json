@@ -1,0 +1,596 @@
+{
+  "schemaVersion": 3,
+  "product": "booking",
+  "repository": "eckelt/booking",
+  "declared": {
+    "name": "booking",
+    "summary": "Terminbuchung unter book.ecke.lt: statische Buchungsseite auf Cloudflare Pages und Worker booking-worker mit Fastmail-CalDAV-Kalender, SMTP-Mailversand, 8x8-JaaS-Meetinglinks unter join.ecke.lt und Feedbackformular unter feedback.ecke.lt.",
+    "managed": "oneshot",
+    "visibility": "public",
+    "docs": [
+      "openspec/project.md",
+      "openspec/specs/booking-page/spec.md",
+      "openspec/specs/booking-api/spec.md",
+      "openspec/specs/availability/spec.md",
+      "openspec/specs/calendar-caldav/spec.md",
+      "openspec/specs/email/spec.md",
+      "openspec/specs/video-meeting/spec.md",
+      "openspec/specs/feedback-form/spec.md",
+      "openspec/specs/deploy/spec.md"
+    ],
+    "containers": [
+      {
+        "id": "frontend",
+        "kind": "app",
+        "name": "Buchungsseite",
+        "summary": "Statisches Frontend in frontend/ (eine HTML-Seite mit JavaScript, Kurzlinks /30min und /60min): Dauer, Slot und Daten wählen, buchen oder umbuchen; DE/EN.",
+        "deployment": "Cloudflare Pages (Projekt booking, Custom Domain book.ecke.lt)",
+        "visibility": "public",
+        "interfaces": [
+          {
+            "id": "booking-page",
+            "direction": "provides",
+            "protocol": "HTTPS HTML",
+            "contractRef": "booking:booking-page@1",
+            "summary": "https://book.ecke.lt/, /30min, /60min (Weiterleitung auf /?duration=30|60), /styles.css, Icons"
+          },
+          {
+            "id": "booking-api",
+            "direction": "consumes",
+            "protocol": "HTTPS JSON",
+            "contractRef": "booking:api@1",
+            "summary": "https://book.ecke.lt/api/slots, /reschedule-info, /book"
+          },
+          {
+            "id": "ds-styles",
+            "direction": "consumes",
+            "protocol": "HTTPS CSS",
+            "contractRef": "ecke-design-system:styles@1",
+            "summary": "@import https://ecke-design-system.pages.dev/v1/styles.css"
+          },
+          {
+            "id": "nils-site",
+            "direction": "consumes",
+            "protocol": "HTTPS Hyperlink",
+            "contractRef": "nils.ecke.lt:site@1",
+            "summary": "https://nils.ecke.lt/, /impressum/, /datenschutz/"
+          },
+          {
+            "id": "pages-hosting",
+            "direction": "consumes",
+            "protocol": "Cloudflare Pages",
+            "contractRef": "cloudflare-pages:hosting@1",
+            "summary": "Pages-Projekt booking, Custom Domain book.ecke.lt"
+          }
+        ]
+      },
+      {
+        "id": "worker",
+        "kind": "service",
+        "name": "booking-worker",
+        "summary": "Cloudflare Worker (TypeScript): Buchungs-API, Meeting-Links join.ecke.lt, Feedbackformular feedback.ecke.lt. Vars (Namen): OWNER_NAME, OWNER_EMAIL, FEEDBACK_EMAIL, CALDAV_CALENDAR_NILS, CALDAV_CALENDAR_OHANA, JAAS_APP_ID, JAAS_KEY_ID, OWNER_TZ, OWNER_MIN_HOUR, OWNER_MAX_HOUR. Secrets (Namen): CALDAV_USERNAME, CALDAV_PASSWORD, SMTP_USERNAME, SMTP_PASSWORD, JAAS_PRIVATE_KEY, HOST_JOIN_SECRET, ANTHROPIC_API_KEY. KV-Binding RATE_LIMIT im Code optional, nicht gebunden.",
+        "deployment": "Cloudflare Workers (Routen book.ecke.lt/api/*, join.ecke.lt/*, feedback.ecke.lt/*)",
+        "visibility": "public",
+        "interfaces": [
+          {
+            "id": "booking-api",
+            "direction": "provides",
+            "protocol": "HTTPS JSON",
+            "contractRef": "booking:api@1",
+            "summary": "Route book.ecke.lt/api/*: GET slots, GET reschedule-info, POST book, GET cancel, GET join"
+          },
+          {
+            "id": "join",
+            "direction": "provides",
+            "protocol": "HTTPS Redirect",
+            "contractRef": "booking:join@1",
+            "summary": "Route join.ecke.lt/*: 302 auf 8x8.vc mit JaaS-JWT"
+          },
+          {
+            "id": "feedback-form",
+            "direction": "provides",
+            "protocol": "HTTPS HTML/JSON",
+            "contractRef": "booking:feedback-form@1",
+            "summary": "Route feedback.ecke.lt/*: Formular /, /<slug>, POST /api/feedback"
+          },
+          {
+            "id": "caldav",
+            "direction": "consumes",
+            "protocol": "CalDAV (HTTPS, Basic Auth)",
+            "contractRef": "fastmail-caldav:caldav@1",
+            "summary": "https://caldav.fastmail.com/dav/calendars/user/…: REPORT, GET, PUT, DELETE"
+          },
+          {
+            "id": "smtp",
+            "direction": "consumes",
+            "protocol": "SMTP (TLS, Port 465, AUTH PLAIN)",
+            "contractRef": "fastmail-smtp:smtp@1",
+            "summary": "smtp.fastmail.com:465 über cloudflare:sockets"
+          },
+          {
+            "id": "jaas",
+            "direction": "consumes",
+            "protocol": "HTTPS Redirect + JWT (RS256)",
+            "contractRef": "jaas:meeting@1",
+            "summary": "https://8x8.vc/<JAAS_APP_ID>/<uid>?jwt=…"
+          },
+          {
+            "id": "anthropic",
+            "direction": "consumes",
+            "protocol": "HTTPS JSON",
+            "contractRef": "anthropic-api:messages@1",
+            "summary": "POST https://api.anthropic.com/v1/messages, Modell claude-haiku-4-5"
+          },
+          {
+            "id": "fonts",
+            "direction": "consumes",
+            "protocol": "HTTPS WOFF2",
+            "contractRef": "nils.ecke.lt:fonts@1",
+            "summary": "Statusseiten laden https://nils.ecke.lt/fonts/*.woff2"
+          },
+          {
+            "id": "booking-page-assets",
+            "direction": "consumes",
+            "protocol": "HTTPS CSS/PNG",
+            "contractRef": "booking:booking-page@1",
+            "summary": "Feedbackseite lädt https://book.ecke.lt/styles.css und Icons"
+          },
+          {
+            "id": "workers-runtime",
+            "direction": "consumes",
+            "protocol": "Cloudflare Workers",
+            "contractRef": "cloudflare-workers:runtime@1",
+            "summary": "Worker booking-worker, nodejs_compat, cloudflare:sockets, Workers Logs"
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "kind": "service",
+        "name": "Deploy-Workflow",
+        "summary": "GitHub-Actions-Workflow .github/workflows/deploy.yml: bei jedem Push auf main npm test, danach wrangler deploy (Worker) und wrangler pages deploy (Frontend). Secret (Name): CLOUDFLARE_API_TOKEN.",
+        "deployment": "GitHub Actions (ubuntu-latest)",
+        "interfaces": [
+          {
+            "id": "actions",
+            "direction": "consumes",
+            "protocol": "GitHub Actions",
+            "contractRef": "github-actions:workflows@1",
+            "summary": "Runner ubuntu-latest, actions/checkout@v4, actions/setup-node@v4 (Node 20)"
+          },
+          {
+            "id": "workers-deploy",
+            "direction": "consumes",
+            "protocol": "Cloudflare API (wrangler deploy)",
+            "contractRef": "cloudflare-workers:deploy-api@1",
+            "summary": "npx wrangler deploy, GitHub-Secret CLOUDFLARE_API_TOKEN"
+          },
+          {
+            "id": "pages-deploy",
+            "direction": "consumes",
+            "protocol": "Cloudflare API (wrangler pages deploy)",
+            "contractRef": "cloudflare-pages:deploy-api@1",
+            "summary": "wrangler pages deploy frontend/ --project-name booking --branch main"
+          }
+        ]
+      }
+    ],
+    "contracts": [
+      {
+        "id": "booking:booking-page@1",
+        "producer": "booking",
+        "consumers": [
+          "nils.ecke.lt",
+          "booking"
+        ],
+        "version": "1"
+      },
+      {
+        "id": "booking:api@1",
+        "producer": "booking",
+        "consumers": [
+          "booking"
+        ],
+        "version": "1"
+      },
+      {
+        "id": "booking:join@1",
+        "producer": "booking",
+        "consumers": [],
+        "version": "1"
+      },
+      {
+        "id": "booking:feedback-form@1",
+        "producer": "booking",
+        "consumers": [],
+        "version": "1"
+      }
+    ],
+    "externals": [
+      {
+        "id": "fastmail-caldav",
+        "vendor": "Fastmail",
+        "category": "calendar",
+        "consoleUrl": "https://app.fastmail.com",
+        "interfaces": [
+          {
+            "id": "caldav",
+            "protocol": "CalDAV (HTTPS, Basic Auth)",
+            "contractRef": "fastmail-caldav:caldav@1",
+            "consumers": [
+              "booking"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fastmail-smtp",
+        "vendor": "Fastmail",
+        "category": "email",
+        "consoleUrl": "https://app.fastmail.com",
+        "interfaces": [
+          {
+            "id": "smtp",
+            "protocol": "SMTP (TLS, Port 465)",
+            "contractRef": "fastmail-smtp:smtp@1",
+            "consumers": [
+              "booking"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "jaas",
+        "vendor": "8x8 JaaS",
+        "category": "video-conferencing",
+        "consoleUrl": "https://jaas.8x8.vc/",
+        "interfaces": [
+          {
+            "id": "meeting",
+            "protocol": "HTTPS + JWT (RS256)",
+            "contractRef": "jaas:meeting@1",
+            "consumers": [
+              "booking"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "anthropic-api",
+        "vendor": "Anthropic",
+        "category": "llm",
+        "docsUrl": "https://docs.anthropic.com/en/api/messages",
+        "interfaces": [
+          {
+            "id": "messages",
+            "protocol": "HTTPS JSON",
+            "contractRef": "anthropic-api:messages@1",
+            "consumers": [
+              "booking"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cloudflare-workers",
+        "vendor": "Cloudflare",
+        "category": "hosting",
+        "consoleUrl": "https://dash.cloudflare.com",
+        "interfaces": [
+          {
+            "id": "runtime",
+            "protocol": "Cloudflare Workers",
+            "contractRef": "cloudflare-workers:runtime@1",
+            "consumers": [
+              "booking"
+            ]
+          },
+          {
+            "id": "deploy-api",
+            "protocol": "Cloudflare API (wrangler)",
+            "contractRef": "cloudflare-workers:deploy-api@1",
+            "consumers": [
+              "booking"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cloudflare-pages",
+        "vendor": "Cloudflare",
+        "category": "hosting",
+        "consoleUrl": "https://dash.cloudflare.com",
+        "interfaces": [
+          {
+            "id": "hosting",
+            "protocol": "Cloudflare Pages",
+            "contractRef": "cloudflare-pages:hosting@1",
+            "consumers": [
+              "booking"
+            ]
+          },
+          {
+            "id": "deploy-api",
+            "protocol": "Cloudflare API (wrangler pages)",
+            "contractRef": "cloudflare-pages:deploy-api@1",
+            "consumers": [
+              "booking"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "github-actions",
+        "vendor": "GitHub",
+        "category": "vcs",
+        "consoleUrl": "https://github.com/eckelt/booking/actions",
+        "interfaces": [
+          {
+            "id": "workflows",
+            "protocol": "GitHub Actions",
+            "contractRef": "github-actions:workflows@1",
+            "consumers": [
+              "booking"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "derived": {
+    "provenance": {
+      "source": "declared",
+      "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+      "at": "2026-09-27T00:00:00Z"
+    },
+    "nodes": [
+      {
+        "id": "booking",
+        "level": "product",
+        "kind": "product",
+        "name": "booking",
+        "summary": "Terminbuchung unter book.ecke.lt: statische Buchungsseite auf Cloudflare Pages und Worker booking-worker mit Fastmail-CalDAV-Kalender, SMTP-Mailversand, 8x8-JaaS-Meetinglinks unter join.ecke.lt und Feedbackformular unter feedback.ecke.lt.",
+        "repository": "eckelt/booking",
+        "visibility": "public",
+        "managed": "oneshot",
+        "docs": [
+          "openspec/project.md",
+          "openspec/specs/booking-page/spec.md",
+          "openspec/specs/booking-api/spec.md",
+          "openspec/specs/availability/spec.md",
+          "openspec/specs/calendar-caldav/spec.md",
+          "openspec/specs/email/spec.md",
+          "openspec/specs/video-meeting/spec.md",
+          "openspec/specs/feedback-form/spec.md",
+          "openspec/specs/deploy/spec.md"
+        ],
+        "provenance": {
+          "source": "declared",
+          "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+          "at": "2026-09-27T00:00:00Z"
+        }
+      },
+      {
+        "id": "booking/frontend",
+        "level": "container",
+        "kind": "app",
+        "name": "Buchungsseite",
+        "path": "frontend/",
+        "visibility": "public",
+        "interfaces": [
+          {
+            "id": "booking-page",
+            "direction": "provides",
+            "protocol": "HTTPS HTML",
+            "contractRef": "booking:booking-page@1"
+          },
+          {
+            "id": "booking-api",
+            "direction": "consumes",
+            "protocol": "HTTPS JSON",
+            "contractRef": "booking:api@1"
+          },
+          {
+            "id": "ds-styles",
+            "direction": "consumes",
+            "protocol": "HTTPS CSS",
+            "contractRef": "ecke-design-system:styles@1"
+          },
+          {
+            "id": "nils-site",
+            "direction": "consumes",
+            "protocol": "HTTPS Hyperlink",
+            "contractRef": "nils.ecke.lt:site@1"
+          },
+          {
+            "id": "pages-hosting",
+            "direction": "consumes",
+            "protocol": "Cloudflare Pages",
+            "contractRef": "cloudflare-pages:hosting@1"
+          }
+        ],
+        "provenance": {
+          "source": "declared",
+          "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+          "at": "2026-09-27T00:00:00Z"
+        }
+      },
+      {
+        "id": "booking/worker",
+        "level": "container",
+        "kind": "service",
+        "name": "booking-worker",
+        "path": "worker/src/index.ts",
+        "visibility": "public",
+        "interfaces": [
+          {
+            "id": "booking-api",
+            "direction": "provides",
+            "protocol": "HTTPS JSON",
+            "contractRef": "booking:api@1"
+          },
+          {
+            "id": "join",
+            "direction": "provides",
+            "protocol": "HTTPS Redirect",
+            "contractRef": "booking:join@1"
+          },
+          {
+            "id": "feedback-form",
+            "direction": "provides",
+            "protocol": "HTTPS HTML/JSON",
+            "contractRef": "booking:feedback-form@1"
+          },
+          {
+            "id": "caldav",
+            "direction": "consumes",
+            "protocol": "CalDAV (HTTPS, Basic Auth)",
+            "contractRef": "fastmail-caldav:caldav@1"
+          },
+          {
+            "id": "smtp",
+            "direction": "consumes",
+            "protocol": "SMTP (TLS, Port 465, AUTH PLAIN)",
+            "contractRef": "fastmail-smtp:smtp@1"
+          },
+          {
+            "id": "jaas",
+            "direction": "consumes",
+            "protocol": "HTTPS Redirect + JWT (RS256)",
+            "contractRef": "jaas:meeting@1"
+          },
+          {
+            "id": "anthropic",
+            "direction": "consumes",
+            "protocol": "HTTPS JSON",
+            "contractRef": "anthropic-api:messages@1"
+          },
+          {
+            "id": "fonts",
+            "direction": "consumes",
+            "protocol": "HTTPS WOFF2",
+            "contractRef": "nils.ecke.lt:fonts@1"
+          },
+          {
+            "id": "booking-page-assets",
+            "direction": "consumes",
+            "protocol": "HTTPS CSS/PNG",
+            "contractRef": "booking:booking-page@1"
+          },
+          {
+            "id": "workers-runtime",
+            "direction": "consumes",
+            "protocol": "Cloudflare Workers",
+            "contractRef": "cloudflare-workers:runtime@1"
+          }
+        ],
+        "provenance": {
+          "source": "declared",
+          "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+          "at": "2026-09-27T00:00:00Z"
+        }
+      },
+      {
+        "id": "booking/deploy",
+        "level": "container",
+        "kind": "service",
+        "name": "Deploy-Workflow",
+        "path": ".github/workflows/deploy.yml",
+        "interfaces": [
+          {
+            "id": "actions",
+            "direction": "consumes",
+            "protocol": "GitHub Actions",
+            "contractRef": "github-actions:workflows@1"
+          },
+          {
+            "id": "workers-deploy",
+            "direction": "consumes",
+            "protocol": "Cloudflare API (wrangler deploy)",
+            "contractRef": "cloudflare-workers:deploy-api@1"
+          },
+          {
+            "id": "pages-deploy",
+            "direction": "consumes",
+            "protocol": "Cloudflare API (wrangler pages deploy)",
+            "contractRef": "cloudflare-pages:deploy-api@1"
+          }
+        ],
+        "provenance": {
+          "source": "declared",
+          "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+          "at": "2026-09-27T00:00:00Z"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "booking/frontend=>external/cloudflare-pages:deploys-to",
+        "from": "booking/frontend",
+        "to": "external/cloudflare-pages",
+        "perspective": "deployment",
+        "kind": "deploys-to",
+        "protocol": "HTTPS",
+        "attributes": {
+          "evidence": ".github/workflows/deploy.yml:42; Makefile:16; landscape:inventory/raw/cloudflare.yaml:15-19",
+          "target": "Pages-Projekt booking, book.ecke.lt"
+        },
+        "provenance": {
+          "source": "declared",
+          "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+          "at": "2026-09-27T00:00:00Z"
+        }
+      },
+      {
+        "id": "booking/worker=>external/cloudflare-workers:deploys-to",
+        "from": "booking/worker",
+        "to": "external/cloudflare-workers",
+        "perspective": "deployment",
+        "kind": "deploys-to",
+        "protocol": "HTTPS",
+        "attributes": {
+          "evidence": "wrangler.toml:1-3; wrangler.toml:34-46; landscape:inventory/raw/cloudflare.yaml:40-44",
+          "target": "booking-worker"
+        },
+        "provenance": {
+          "source": "declared",
+          "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+          "at": "2026-09-27T00:00:00Z"
+        }
+      },
+      {
+        "id": "booking/deploy=>external/cloudflare-workers:writes",
+        "from": "booking/deploy",
+        "to": "external/cloudflare-workers",
+        "perspective": "deployment",
+        "kind": "writes",
+        "protocol": "Cloudflare API (wrangler deploy)",
+        "attributes": {
+          "evidence": ".github/workflows/deploy.yml:19-31"
+        },
+        "provenance": {
+          "source": "declared",
+          "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+          "at": "2026-09-27T00:00:00Z"
+        }
+      },
+      {
+        "id": "booking/deploy=>external/cloudflare-pages:writes",
+        "from": "booking/deploy",
+        "to": "external/cloudflare-pages",
+        "perspective": "deployment",
+        "kind": "writes",
+        "protocol": "Cloudflare API (wrangler pages deploy)",
+        "attributes": {
+          "evidence": ".github/workflows/deploy.yml:33-45"
+        },
+        "provenance": {
+          "source": "declared",
+          "commit": "7877d39c9cf0bee4fc970b0c77edbd0fd97e6797",
+          "at": "2026-09-27T00:00:00Z"
+        }
+      }
+    ],
+    "violations": []
+  }
+}
