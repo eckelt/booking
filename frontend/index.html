@@ -742,6 +742,10 @@
             // disagree on where slot boundaries fall and a picked slot can come
             // back "no longer available" even though nothing else changed.
             const RESCHEDULE_UID = new URLSearchParams(location.search).get("reschedule") || "";
+            // Signed token from the reschedule link in the confirmation mail;
+            // passed through to /api/reschedule-info and /api/book as ?t=.
+            const RESCHEDULE_TOKEN = new URLSearchParams(location.search).get("t");
+            const rescheduleTokenQuery = RESCHEDULE_TOKEN !== null ? `t=${encodeURIComponent(RESCHEDULE_TOKEN)}` : "";
             let rescheduleParam = RESCHEDULE_UID ? `&reschedule=${encodeURIComponent(RESCHEDULE_UID)}` : "";
             // True once a reschedule can actually proceed: either an older
             // email's link already carried ?duration= (legacy format), or the
@@ -1443,7 +1447,7 @@
                             // A valid reschedule submits only the uid + new
                             // time — duration/name/email travel with the
                             // event itself, not this request.
-                            const res = await fetch(`${API}/book`, {
+                            const res = await fetch(`${API}/book${isReschedule && rescheduleTokenQuery ? `?${rescheduleTokenQuery}` : ""}`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
@@ -1617,7 +1621,7 @@
             if (RESCHEDULE_UID && !DURATION) {
                 // Simplified link: just the uid, no ?duration=. Look up how
                 // long the original booking was before we can show a calendar.
-                fetch(`${API}/reschedule-info?uid=${encodeURIComponent(RESCHEDULE_UID)}`)
+                fetch(`${API}/reschedule-info?uid=${encodeURIComponent(RESCHEDULE_UID)}${rescheduleTokenQuery ? `&${rescheduleTokenQuery}` : ""}`)
                     .then((r) => (r.ok ? r.json() : Promise.reject()))
                     .then((data) => {
                         DURATION = data.duration;

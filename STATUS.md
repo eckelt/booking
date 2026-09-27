@@ -33,6 +33,7 @@
 |---|---|
 | `CALDAV_USERNAME` | Fastmail login (`nils@ecke.lt`) |
 | `CALDAV_PASSWORD` | Fastmail app password with CalDAV read/write |
+| `LINK_SIGNING_SECRET` | HMAC key for the signed cancel/reschedule/join links (`t` parameter). Links without `t` are accepted until 2026-10-31 (Europe/Berlin), then rejected; without this secret links are sent unsigned. |
 | `ANTHROPIC_API_KEY` | Anthropic API key — powers meeting-title generation (Claude Haiku). Optional; without it titles use the plain fallback. |
 | `SMTP_USERNAME` | Fastmail login — **now obsolete**, can be deleted |
 | `SMTP_PASSWORD` | Fastmail SMTP app password — **now obsolete**, can be deleted |

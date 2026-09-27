@@ -6,6 +6,7 @@ import { generateUid } from "./jitsi.js";
 import { generateMeetingNames, fallbackNames } from "./title.js";
 import type { MeetingName } from "./title.js";
 import { computeSlots, workingDayWindow, excludeMovingEvent } from "./availability.js";
+import { buildBookingLinks, ownerJoinUrl } from "./links.js";
 
 const MAX_DAYS = 14;
 const SUPPORTED_DURATIONS = [30, 60] as const;
@@ -164,8 +165,7 @@ export async function createBooking(
     const hasNewNotes = !!req.notes?.trim();
     title = (hasNewNotes ? names[0]!.title : oldEvent.title) || names[0]!.title;
     notes = hasNewNotes ? req.notes : (oldEvent.notes || "");
-    const link = `https://join.ecke.lt/${uid}`;
-    const ownerJitsiUrl = env.HOST_JOIN_SECRET ? `${link}?host=${env.HOST_JOIN_SECRET}` : link;
+    const ownerJitsiUrl = await ownerJoinUrl(env, uid);
     const icalForOwner = buildIcal({
       uid,
       start,
@@ -190,8 +190,7 @@ export async function createBooking(
     ];
     for (let i = 0; i < attempts.length; i++) {
       const cand = attempts[i]!;
-      const link = `https://join.ecke.lt/${cand.slug}`;
-      const ownerJitsiUrl = env.HOST_JOIN_SECRET ? `${link}?host=${env.HOST_JOIN_SECRET}` : link;
+      const ownerJitsiUrl = await ownerJoinUrl(env, cand.slug);
       const icalForOwner = buildIcal({
         uid: cand.slug,
         start,
@@ -225,7 +224,9 @@ export async function createBooking(
     }
   }
 
-  const jitsiUrl = `https://join.ecke.lt/${uid}`;
+  // Booker-facing links carry a signed token `t` (see links.ts).
+  const links = await buildBookingLinks(env, uid);
+  const jitsiUrl = links.joinUrl;
 
   // Email is best-effort — a failure must not roll back the booking
   const icalForBooker = buildIcal({
@@ -250,10 +251,10 @@ export async function createBooking(
       notes,
       jitsiUrl,
       icalAttachment: icalForBooker,
-      cancelUrl: `https://book.ecke.lt/api/cancel?uid=${uid}`,
-      // Just the uid — duration, name, and email travel with the event
-      // itself (see getEvent()'s ATTENDEE/duration derivation), not the link.
-      rescheduleUrl: `https://book.ecke.lt/?reschedule=${uid}`,
+      cancelUrl: links.cancelUrl,
+      // Just the uid (+ token) — duration, name, and email travel with the
+      // event itself (see getEvent()'s ATTENDEE/duration derivation).
+      rescheduleUrl: links.rescheduleUrl,
     }).catch((err) => console.error(`[email] FAILED uid=${uid} to=${email} error=${err?.message ?? err}`))
   );
 

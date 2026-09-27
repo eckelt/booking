@@ -19,6 +19,9 @@ export interface Env {
   JAAS_KEY_ID: string;
   JAAS_PRIVATE_KEY: string;
   HOST_JOIN_SECRET?: string;
+  // HMAC key for the signed booking links (cancel, reschedule, join; query
+  // parameter `t`). Worker secret; see links.ts.
+  LINK_SIGNING_SECRET?: string;
   // Anthropic API key for generating meeting titles (Claude Haiku). When unset,
   // bookings fall back to a plain "Termin mit …" / "Meeting with …" title.
   ANTHROPIC_API_KEY?: string;

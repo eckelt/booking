@@ -47,11 +47,11 @@ Das System SHALL nach Slot-Wahl Name, E-Mail und Notiz abfragen und `POST /api/b
 - **THEN** wird `aiTitle: false` gesendet und die Wahl im `localStorage` (`booking-ai-title`) gemerkt [frontend/index.html:1397; frontend/index.html:1407-1411; frontend/index.html:1456]
 
 ### Requirement: Umbuchen
-Das System SHALL mit `?reschedule=<uid>` einen bestehenden Termin verschieben und dabei nur uid und neue Zeit senden [frontend/index.html:744-745; frontend/index.html:1457-1459].
+Das System SHALL mit `?reschedule=<uid>&t=<token>` einen bestehenden Termin verschieben, dabei nur uid und neue Zeit senden und das Token `t` als Query-Parameter an `/api/reschedule-info` und `/api/book` durchreichen [frontend/index.html:744-748; frontend/index.html:1450; frontend/index.html:1461-1463; frontend/index.html:1624].
 
 #### Scenario: Link ohne Dauer
-- **WHEN** der Link nur `?reschedule=<uid>` enthält
-- **THEN** holt die Seite die Dauer über `/api/reschedule-info`; schlägt das fehl, wird eine normale Neubuchung angeboten [frontend/index.html:1617-1631]
+- **WHEN** der Link nur `?reschedule=<uid>[&t=…]` enthält
+- **THEN** holt die Seite die Dauer über `/api/reschedule-info`; schlägt das fehl (auch bei ungültigem Token), wird eine normale Neubuchung angeboten [frontend/index.html:1621-1636]
 
 ### Requirement: Sprache und Speicherung
 Das System SHALL zwischen Deutsch und Englisch umschalten und Sprache, Name, E-Mail und Notiz im `localStorage` halten [frontend/index.html:683-686; frontend/index.html:939-942; frontend/index.html:1356-1357; frontend/index.html:1390-1393].

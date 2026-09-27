@@ -2,6 +2,10 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import worker from "../src/index.js";
 import { workingDayWindow } from "../src/availability.js";
 import type { Env } from "../src/types.js";
+import { signLinkToken } from "../src/links.js";
+
+const LINK_SECRET = "test-link-signing-secret";
+const rescheduleT = () => signLinkToken(LINK_SECRET, "reschedule", "old-meeting-uid");
 
 // Reproduces the reported incident: /api/slots offered "09:35" as a bookable
 // slot during a reschedule (only a valid slot boundary because the OLD event
@@ -22,6 +26,7 @@ describe("handleSlots + createBooking — reschedule slot-grid consistency", () 
     CALDAV_CALENDAR_OHANA: "Ohana",
     SMTP_USERNAME: "nils@ecke.lt",
     SMTP_PASSWORD: "smtp-secret",
+    LINK_SIGNING_SECRET: LINK_SECRET,
   } as Env;
 
   const fakeCtx = {
@@ -131,7 +136,7 @@ describe("handleSlots + createBooking — reschedule slot-grid consistency", () 
     const { slots } = await slotsRes.json() as { slots: { start: string; end: string }[] };
     const picked = slots[0]!;
 
-    const bookReq = new Request("https://book.ecke.lt/api/book", {
+    const bookReq = new Request(`https://book.ecke.lt/api/book?t=${await rescheduleT()}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -156,7 +161,7 @@ describe("handleSlots + createBooking — reschedule slot-grid consistency", () 
     stubFetch("old-meeting-uid", oldStart, oldEnd);
 
     const res = await worker.fetch(
-      new Request("https://book.ecke.lt/api/reschedule-info?uid=old-meeting-uid"),
+      new Request(`https://book.ecke.lt/api/reschedule-info?uid=old-meeting-uid&t=${await rescheduleT()}`),
       mockEnv, fakeCtx,
     );
     const body = await res.json() as { duration?: number; error?: string };
@@ -170,7 +175,7 @@ describe("handleSlots + createBooking — reschedule slot-grid consistency", () 
     stubFetch("some-other-uid", oldStart, new Date(oldStart.getTime() + 30 * 60000));
 
     const res = await worker.fetch(
-      new Request("https://book.ecke.lt/api/reschedule-info?uid=gone-uid"),
+      new Request(`https://book.ecke.lt/api/reschedule-info?uid=gone-uid&t=${await signLinkToken(LINK_SECRET, "reschedule", "gone-uid")}`),
       mockEnv, fakeCtx,
     );
     expect(res.status).toBe(404);
@@ -182,7 +187,7 @@ describe("handleSlots + createBooking — reschedule slot-grid consistency", () 
     stubFetch("old-meeting-uid", oldStart, oldEnd);
 
     const infoRes = await worker.fetch(
-      new Request("https://book.ecke.lt/api/reschedule-info?uid=old-meeting-uid"),
+      new Request(`https://book.ecke.lt/api/reschedule-info?uid=old-meeting-uid&t=${await rescheduleT()}`),
       mockEnv, fakeCtx,
     );
     const { duration } = await infoRes.json() as { duration: number };
@@ -196,7 +201,7 @@ describe("handleSlots + createBooking — reschedule slot-grid consistency", () 
     const picked = slots[0]!;
 
     const bookRes = await worker.fetch(
-      new Request("https://book.ecke.lt/api/book", {
+      new Request(`https://book.ecke.lt/api/book?t=${await rescheduleT()}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // Exactly what the simplified link submits: no duration, name, or email.

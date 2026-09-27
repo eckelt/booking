@@ -5,6 +5,7 @@ import { workingDayWindow, computeSlots, excludeMovingEvent } from "./availabili
 import { validateBookingRequest, createBooking } from "./booking.js";
 import { generateJitsiUrl } from "./jitsi.js";
 import { FEEDBACK_HOST, handleFeedback } from "./feedback.js";
+import { isLinkAuthorized } from "./links.js";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "https://book.ecke.lt",
@@ -28,6 +29,19 @@ const PAGE_STYLE = `
   .back { display: inline-block; margin-top: 2rem; font-size: 0.85rem; color: var(--muted); }
   .rule { border: none; border-top: 1px solid var(--rule); margin: 2rem 0; }
 `;
+
+// Shown when a cancel/join link carries no valid signed token `t` (or none at
+// all after the transition period, see links.ts).
+function invalidLinkPage(): Response {
+  return page(
+    "Link ungültig",
+    "Link ungültig oder abgelaufen",
+    "<p>Dieser Link ist nicht gültig oder abgelaufen. Bitte nutze den Link aus deiner Buchungsbestätigung.</p>",
+    403
+  );
+}
+
+const INVALID_LINK_ERROR = "Link ungültig oder abgelaufen";
 
 function page(title: string, heading: string, body: string, status = 200): Response {
   return html(`<!DOCTYPE html>
@@ -76,7 +90,7 @@ export default {
         return await handleRescheduleInfo(url, env);
       }
       if (url.pathname === "/api/book" && request.method === "POST") {
-        return await handleBook(request, env, ctx);
+        return await handleBook(request, url, env, ctx);
       }
       if (url.pathname === "/api/cancel" && request.method === "GET") {
         return await handleCancel(url, request, env);
@@ -132,6 +146,11 @@ async function handleJoin(rawUid: string | null, url: URL, env: Env): Promise<Re
   const hostSecret = url.searchParams.get("host")?.trim();
   const expectedSecret = env.HOST_JOIN_SECRET?.trim();
   const isHost = !!hostSecret && !!expectedSecret && timingSafeEqual(hostSecret, expectedSecret);
+  // The owner's host link needs no `t`; every other join needs a valid
+  // signed token (only the signature is checked — no calendar lookup).
+  if (!isHost && !(await isLinkAuthorized(env, "join", uid, url.searchParams.get("t")))) {
+    return invalidLinkPage();
+  }
 
   const now = new Date();
   const expires = new Date(now.getTime() + 2 * 60 * 60 * 1000);
@@ -237,6 +256,9 @@ async function handleRescheduleInfo(url: URL, env: Env): Promise<Response> {
   if (!uid || !/^[\w-]+$/.test(uid)) {
     return json({ error: "invalid uid" }, 400);
   }
+  if (!(await isLinkAuthorized(env, "reschedule", uid, url.searchParams.get("t")))) {
+    return json({ error: INVALID_LINK_ERROR }, 403);
+  }
   const event = await getEvent(env, uid).catch(() => null);
   if (!event) {
     return json({ error: "not found" }, 404);
@@ -245,7 +267,7 @@ async function handleRescheduleInfo(url: URL, env: Env): Promise<Response> {
   return json({ duration: durationMin });
 }
 
-async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+async function handleBook(request: Request, url: URL, env: Env, ctx: ExecutionContext): Promise<Response> {
   const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
   if (!(await checkRateLimit(env, ip, "book", 5, 3600))) {
     return json({ error: "Zu viele Anfragen. Bitte versuche es später erneut." }, 429);
@@ -263,6 +285,12 @@ async function handleBook(request: Request, env: Env, ctx: ExecutionContext): Pr
     req = validateBookingRequest(body);
   } catch (err) {
     return json({ error: (err as Error).message }, 422);
+  }
+
+  // A reschedule must carry the signed token from the booker's link, passed
+  // through by the frontend as `?t=` on this request.
+  if (req.rescheduleUid && !(await isLinkAuthorized(env, "reschedule", req.rescheduleUid, url.searchParams.get("t")))) {
+    return json({ error: INVALID_LINK_ERROR }, 403);
   }
 
   try {
@@ -298,6 +326,9 @@ async function handleCancel(url: URL, request: Request, env: Env): Promise<Respo
       "<p>Dieser Link ist nicht gültig.</p>",
       400
     );
+  }
+  if (!(await isLinkAuthorized(env, "cancel", uid, url.searchParams.get("t")))) {
+    return invalidLinkPage();
   }
   await deleteEvent(env, uid);
   return page(

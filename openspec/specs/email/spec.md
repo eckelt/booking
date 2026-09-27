@@ -18,7 +18,7 @@ Das System SHALL Mails über eine TLS-Socket-Verbindung zu `smtp.fastmail.com:46
 - **THEN** wird sie als `multipart/mixed` mit `multipart/alternative` und optionalem `text/calendar`-Anhang (Base64) gebaut, sonst als Base64-`text/plain`; Betreffzeilen mit Nicht-ASCII werden als UTF-8-Encoded-Word kodiert [worker/src/email.ts:343-404]
 
 ### Requirement: Mails nach einer Buchung
-Das System SHALL nach jeder Buchung im Hintergrund eine Bestätigung an den Bucher (Text, HTML, `booking.ics` mit `METHOD:PUBLISH`, Links zum Umbuchen und Stornieren) und eine Benachrichtigung an `OWNER_EMAIL` senden [worker/src/booking.ts:243-258; worker/src/email.ts:22-26; worker/src/email.ts:96-117; worker/src/email.ts:207-209].
+Das System SHALL nach jeder Buchung im Hintergrund eine Bestätigung an den Bucher (Text, HTML, `booking.ics` mit `METHOD:PUBLISH`, signierte Links zum Beitreten, Umbuchen und Stornieren) und eine Benachrichtigung an `OWNER_EMAIL` senden [worker/src/booking.ts:227-259; worker/src/email.ts:22-26; worker/src/email.ts:96-117; worker/src/email.ts:207-209].
 
 #### Scenario: Wiederholung
 - **WHEN** ein Versand fehlschlägt
@@ -26,7 +26,7 @@ Das System SHALL nach jeder Buchung im Hintergrund eine Bestätigung an den Buch
 
 #### Scenario: Bestätigung scheitert endgültig
 - **WHEN** die Bestätigung an den Bucher nach allen Versuchen fehlschlägt
-- **THEN** geht eine Warnmail „[ACTION NEEDED]“ mit den Kontaktdaten an `OWNER_EMAIL`; die Buchung bleibt bestehen [worker/src/email.ts:28-32; worker/src/email.ts:76-94; worker/src/booking.ts:230]
+- **THEN** geht eine Warnmail „[ACTION NEEDED]“ mit den Kontaktdaten an `OWNER_EMAIL`; die Buchung bleibt bestehen [worker/src/email.ts:28-32; worker/src/email.ts:76-94; worker/src/booking.ts:231]
 
 #### Scenario: Sprache
 - **WHEN** die Bestätigung erzeugt wird
