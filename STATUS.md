@@ -43,6 +43,11 @@
 |---|---|
 | `OWNER_NAME` | Nils Eckelt |
 | `OWNER_EMAIL` | nils@ecke.lt |
+
+**KV namespace bindings** (in `wrangler.toml`):
+| Binding | Purpose |
+|---|---|
+| `RATE_LIMIT` | Per-IP counters for `/api/book` (5/h) and `/api/cancel` (10/h); see `checkRateLimit` in `worker/src/index.ts`. |
 | `CALDAV_CALENDAR_NILS` | `bd0ce304-f055-4524-9273-80a7d8cee9f1` (Fastmail UUID for "Nils") |
 | `CALDAV_CALENDAR_OHANA` | `0C692FAB-66C9-454F-B51D-D076560588DB` (Fastmail UUID for "Ohana") |
 

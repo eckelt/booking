@@ -88,12 +88,16 @@ Das System SHALL `GET /api/cancel?uid=&t=` den Termin im Kalender löschen und e
 - **WHEN** `t` nicht passt (oder nach der Übergangsfrist fehlt)
 - **THEN** zeigt der Worker die Fehlerseite „Link ungültig oder abgelaufen“ mit Status 403 und löscht nichts [worker/src/index.ts:330-332; worker/src/index.ts:33-42]
 
-### Requirement: Rate-Limiting (nur mit Binding)
-Das System SHALL Buchungen auf 5 und Stornos auf 10 pro IP und Stunde begrenzen, aber nur wenn das KV-Binding `RATE_LIMIT` vorhanden ist; derzeit ist es nicht gebunden [worker/src/index.ts:98-113; worker/src/index.ts:249-252; worker/src/index.ts:283-291; wrangler.toml:31-32; landscape:inventory/raw/cloudflare.yaml:64].
+### Requirement: Rate-Limiting
+Das System SHALL Buchungen auf 5 und Stornos auf 10 pro IP und Stunde begrenzen; das KV-Binding `RATE_LIMIT` ist gebunden [worker/src/index.ts:112-127; worker/src/index.ts:270-273; worker/src/index.ts:310-317; wrangler.toml:37-39].
+
+#### Scenario: Limit erreicht
+- **WHEN** eine IP innerhalb einer Stunde mehr als 5 `POST /api/book` bzw. mehr als 10 `GET /api/cancel` sendet
+- **THEN** antwortet der Worker mit 429, ohne die Anfrage weiter zu verarbeiten [worker/src/index.ts:271-273; worker/src/index.ts:311-317]
 
 #### Scenario: Ohne Binding
 - **WHEN** `RATE_LIMIT` fehlt
-- **THEN** wird jede Anfrage durchgelassen [worker/src/index.ts:105]
+- **THEN** wird jede Anfrage durchgelassen [worker/src/index.ts:119]
 
 ### Requirement: Signierte Links
 Das System SHALL Storno-, Umbuchungs- und Meeting-Links mit einem Token `t` absichern: base64url von HMAC-SHA256 über `booking-link:<zweck>:<uid>` mit dem Worker-Secret `LINK_SIGNING_SECRET`, getrennt je Zweck `cancel`, `reschedule` und `join`, ohne Speicherung; geprüft wird mit `crypto.subtle.verify` [worker/src/links.ts:10; worker/src/links.ts:20-23; worker/src/links.ts:51-68; worker/src/types.ts:21-24].

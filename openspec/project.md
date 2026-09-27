@@ -52,6 +52,7 @@ Bekannter Nutzer: nils.ecke.lt verlinkt auf die Buchungsseite `https://book.ecke
 | SMTP `smtp.fastmail.com:465` (TLS, AUTH PLAIN) | Fastmail (Mailversand) | `fastmail-smtp:smtp@1` | [worker/src/email.ts:227-229; worker/src/email.ts:282-284] |
 | Meeting `https://8x8.vc/<appId>/<uid>?jwt=…` (RS256-JWT) | 8x8 JaaS | `jaas:meeting@1` | [worker/src/jitsi.ts:10-21; worker/src/jitsi.ts:36-65] |
 | `POST https://api.anthropic.com/v1/messages` (Modell `claude-haiku-4-5`) | Anthropic | `anthropic-api:messages@1` | [worker/src/title.ts:6; worker/src/title.ts:86-105] |
+| KV-Namespace `RATE_LIMIT` (Zähler pro IP/Aktion für Rate-Limiting) | Cloudflare KV | `cloudflare-kv:kv@1` | [worker/src/index.ts:112-127; worker/src/types.ts:25; wrangler.toml:37-39] |
 | Laufzeit des Workers (Routen, `cloudflare:sockets`, Workers Logs) | Cloudflare Workers | `cloudflare-workers:runtime@1` | [wrangler.toml:1-12; wrangler.toml:34-46; worker/src/email.ts:228] |
 | Hosting der statischen Dateien (Projekt `booking`) | Cloudflare Pages | `cloudflare-pages:hosting@1` | [Makefile:15-16; landscape:inventory/raw/cloudflare.yaml:15-19] |
 | Worker-Deploy (`wrangler deploy`) | Cloudflare Workers | `cloudflare-workers:deploy-api@1` | [.github/workflows/deploy.yml:19-31] |
@@ -81,7 +82,7 @@ Intern (gleiches Produkt): Das Frontend ruft die Buchungs-API auf (`booking:api@
 | ecke-design-system | Library; `v1/styles.css` zur Laufzeit per `@import` | [frontend/styles.css:2; landscape:inventory/raw/booking.yaml:158-160] |
 | nils.ecke.lt | Webfonts für die Statusseiten des Workers; Links auf Profil, Impressum, Datenschutz | [worker/src/index.ts:15-17; frontend/index.html:681; frontend/index.html:1642-1644; landscape:inventory/raw/booking.yaml:151-157] |
 
-Laufzeit-Konfiguration des Workers (nur Namen): Variablen `OWNER_NAME`, `OWNER_EMAIL`, `FEEDBACK_EMAIL`, `CALDAV_CALENDAR_NILS`, `CALDAV_CALENDAR_OHANA`, `JAAS_APP_ID`, `JAAS_KEY_ID`, `OWNER_TZ`, `OWNER_MIN_HOUR`, `OWNER_MAX_HOUR` [wrangler.toml:14-29]; Secrets `CALDAV_USERNAME`, `CALDAV_PASSWORD`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `JAAS_PRIVATE_KEY`, `HOST_JOIN_SECRET`, `ANTHROPIC_API_KEY` [worker/src/types.ts:1-25; landscape:inventory/raw/cloudflare.yaml:45-52] und seit B13/B14 `LINK_SIGNING_SECRET` [worker/src/types.ts:21-24; wrangler.toml:31-33]; optionales KV-Binding `RATE_LIMIT`, das nicht gebunden ist [worker/src/types.ts:25; landscape:inventory/raw/cloudflare.yaml:64]. Kompatibilitätsflag `nodejs_compat`, Workers Logs mit Sampling 1 [wrangler.toml:4-12].
+Laufzeit-Konfiguration des Workers (nur Namen): Variablen `OWNER_NAME`, `OWNER_EMAIL`, `FEEDBACK_EMAIL`, `CALDAV_CALENDAR_NILS`, `CALDAV_CALENDAR_OHANA`, `JAAS_APP_ID`, `JAAS_KEY_ID`, `OWNER_TZ`, `OWNER_MIN_HOUR`, `OWNER_MAX_HOUR` [wrangler.toml:14-29]; Secrets `CALDAV_USERNAME`, `CALDAV_PASSWORD`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `JAAS_PRIVATE_KEY`, `HOST_JOIN_SECRET`, `ANTHROPIC_API_KEY` [worker/src/types.ts:1-25; landscape:inventory/raw/cloudflare.yaml:45-52] und seit B13/B14 `LINK_SIGNING_SECRET` [worker/src/types.ts:21-24; wrangler.toml:31-33]; KV-Binding `RATE_LIMIT` (Cloudflare KV, seit B3 gebunden) [worker/src/types.ts:25; wrangler.toml:37-39]. Kompatibilitätsflag `nodejs_compat`, Workers Logs mit Sampling 1 [wrangler.toml:4-12].
 
 ### Extern
 
@@ -92,6 +93,7 @@ Laufzeit-Konfiguration des Workers (nur Namen): Variablen `OWNER_NAME`, `OWNER_E
 | 8x8 JaaS | Videomeeting | [worker/src/jitsi.ts:20; landscape:inventory/overlay.yaml:129-135] |
 | Anthropic | Meeting-Titel und Link-Slugs | [worker/src/title.ts:6; worker/src/title.ts:86] |
 | Cloudflare Workers | Laufzeit `booking-worker`, Routen `book.ecke.lt/api/*`, `join.ecke.lt/*`, `feedback.ecke.lt/*` | [wrangler.toml:1; wrangler.toml:34-46; landscape:inventory/raw/cloudflare.yaml:40-44] |
+| Cloudflare KV | Namespace `RATE_LIMIT` (Rate-Limiting-Zähler) | [wrangler.toml:37-39; worker/src/index.ts:112-127] |
 | Cloudflare Pages | Hosting Frontend, Projekt `booking`, Custom Domain book.ecke.lt | [Makefile:15-16; landscape:inventory/raw/cloudflare.yaml:15-19] |
 | GitHub (Actions) | Repo und CI | [.github/workflows/deploy.yml:1-45] |
 
@@ -99,7 +101,6 @@ Build-Werkzeuge (dev): `wrangler`, `typescript`, `vitest`, `@cloudflare/workers-
 
 ## Bekannte Lücken
 
-- **Rate-Limiting inaktiv (C4 → B3):** Der Code prüft Limits nur, wenn `RATE_LIMIT` gebunden ist; das Binding fehlt in `wrangler.toml` und live [worker/src/index.ts:105; wrangler.toml:31-32; landscape:inventory/raw/cloudflare.yaml:64; landscape:inventory/overlay.yaml:136-144].
 - **Veraltete Doku zu Jitsi (C3 → B5, B6):** `docs/spec-*.md` und eine Test-Fixture nennen meet.jit.si, der Code nutzt 8x8/JaaS [landscape:inventory/overlay.yaml:128-135; landscape:backlog.md:12-13].
 - **`HOST_JOIN_SECRET` nicht dokumentiert (C5 → B7):** Das Secret ist live gesetzt, steht aber weder in `wrangler.toml` noch in `STATUS.md` [worker/src/types.ts:21; landscape:inventory/overlay.yaml:145-154; landscape:backlog.md:14].
 - **`STATUS.md` widerspricht dem Code:** Dort heißt es, der Mailversand sei offen, der Code nutze MailChannels und die SMTP-Secrets seien überflüssig; der Code verschickt per SMTP über Fastmail. Auch die „nächsten Schritte“ (60-Minuten-Seite anlegen) sind schon erledigt [STATUS.md:20-22; STATUS.md:37-38; STATUS.md:89-90; worker/src/email.ts:227-229; frontend/60min/index.html:7].

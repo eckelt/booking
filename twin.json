@@ -68,7 +68,7 @@
         "id": "worker",
         "kind": "service",
         "name": "booking-worker",
-        "summary": "Cloudflare Worker (TypeScript): Buchungs-API, Meeting-Links join.ecke.lt, Feedbackformular feedback.ecke.lt. Vars (Namen): OWNER_NAME, OWNER_EMAIL, FEEDBACK_EMAIL, CALDAV_CALENDAR_NILS, CALDAV_CALENDAR_OHANA, JAAS_APP_ID, JAAS_KEY_ID, OWNER_TZ, OWNER_MIN_HOUR, OWNER_MAX_HOUR. Secrets (Namen): CALDAV_USERNAME, CALDAV_PASSWORD, SMTP_USERNAME, SMTP_PASSWORD, JAAS_PRIVATE_KEY, HOST_JOIN_SECRET, LINK_SIGNING_SECRET, ANTHROPIC_API_KEY. KV-Binding RATE_LIMIT im Code optional, nicht gebunden.",
+        "summary": "Cloudflare Worker (TypeScript): Buchungs-API, Meeting-Links join.ecke.lt, Feedbackformular feedback.ecke.lt. Vars (Namen): OWNER_NAME, OWNER_EMAIL, FEEDBACK_EMAIL, CALDAV_CALENDAR_NILS, CALDAV_CALENDAR_OHANA, JAAS_APP_ID, JAAS_KEY_ID, OWNER_TZ, OWNER_MIN_HOUR, OWNER_MAX_HOUR. Secrets (Namen): CALDAV_USERNAME, CALDAV_PASSWORD, SMTP_USERNAME, SMTP_PASSWORD, JAAS_PRIVATE_KEY, HOST_JOIN_SECRET, LINK_SIGNING_SECRET, ANTHROPIC_API_KEY. KV-Binding RATE_LIMIT (Cloudflare KV) für Rate-Limiting gebunden.",
         "deployment": "Cloudflare Workers (Routen book.ecke.lt/api/*, join.ecke.lt/*, feedback.ecke.lt/*)",
         "visibility": "public",
         "interfaces": [
@@ -120,6 +120,13 @@
             "protocol": "HTTPS JSON",
             "contractRef": "anthropic-api:messages@1",
             "summary": "POST https://api.anthropic.com/v1/messages, Modell claude-haiku-4-5"
+          },
+          {
+            "id": "rate-limit-kv",
+            "direction": "consumes",
+            "protocol": "Workers KV Binding",
+            "contractRef": "cloudflare-kv:kv@1",
+            "summary": "KV-Binding RATE_LIMIT: Zähler pro IP und Aktion (rl:<action>:<ip>:<window>) für /api/book und /api/cancel"
           },
           {
             "id": "fonts",
@@ -296,6 +303,22 @@
         ]
       },
       {
+        "id": "cloudflare-kv",
+        "vendor": "Cloudflare",
+        "category": "platform",
+        "consoleUrl": "https://dash.cloudflare.com",
+        "interfaces": [
+          {
+            "id": "kv",
+            "protocol": "Workers KV Binding",
+            "contractRef": "cloudflare-kv:kv@1",
+            "consumers": [
+              "booking"
+            ]
+          }
+        ]
+      },
+      {
         "id": "cloudflare-pages",
         "vendor": "Cloudflare",
         "category": "hosting",
@@ -464,6 +487,12 @@
             "direction": "consumes",
             "protocol": "HTTPS JSON",
             "contractRef": "anthropic-api:messages@1"
+          },
+          {
+            "id": "rate-limit-kv",
+            "direction": "consumes",
+            "protocol": "Workers KV Binding",
+            "contractRef": "cloudflare-kv:kv@1"
           },
           {
             "id": "fonts",
