@@ -22,7 +22,7 @@ Das System SHALL 30 oder 60 Minuten anbieten und die Dauer aus `?duration=` oder
 
 #### Scenario: Ohne Dauer
 - **WHEN** weder Parameter noch Pfad eine Dauer vorgeben
-- **THEN** zeigt die Seite die Auswahl 30/60 Minuten; nach der Wahl wird die URL auf `/?duration=<d>` gesetzt [frontend/index.html:1225-1228]
+- **THEN** zeigt die Seite die Auswahl 30/60 Minuten; nach der Wahl wird `duration=<d>` in die URL gesetzt, übrige Query-Parameter (Vorbelegung) bleiben erhalten [frontend/index.html, `pickDuration`]
 
 ### Requirement: Slots anzeigen
 Das System SHALL für die nächsten 14 Tage die freien Slots mit einer einzigen Bereichsanfrage an `/api/slots` laden und bei Fehler pro Tag nachladen [frontend/index.html:1195-1222].
@@ -53,11 +53,26 @@ Das System SHALL mit `?reschedule=<uid>&t=<token>` einen bestehenden Termin vers
 - **WHEN** der Link nur `?reschedule=<uid>[&t=…]` enthält
 - **THEN** holt die Seite die Dauer über `/api/reschedule-info`; schlägt das fehl (auch bei ungültigem Token), wird eine normale Neubuchung angeboten [frontend/index.html:1621-1636]
 
+### Requirement: Vorbelegter Link für KI-Agenten
+Das System SHALL unter `/llms.txt` eine Anleitung für KI-Agenten ausliefern (freie Slots über `GET /api/slots` holen, mit dem Kalender des Nutzers abgleichen, vorbelegten Link übergeben) und einen Link `/?duration=<d>&start=<ISO>&name=…&email=…&notes=…&lang=de|en` als vorausgefülltes Formular öffnen. Gebucht wird erst, wenn der Mensch bestätigt [frontend/llms.txt; frontend/index.html, `openPresetSlot`].
+
+#### Scenario: Slot frei
+- **WHEN** `start` (beliebige Offset-Schreibweise desselben Zeitpunkts) einem freien Slot entspricht
+- **THEN** wählt die Seite Tag und Slot aus und öffnet das Formular mit Name, E-Mail und Notiz aus dem Link
+
+#### Scenario: Slot vergeben
+- **WHEN** `start` keinem freien Slot entspricht
+- **THEN** zeigt die Seite einen Hinweis und, sofern der Tag noch buchbar ist, die übrigen Slots dieses Tages
+
+#### Scenario: Auffindbarkeit
+- **WHEN** ein Agent die Startseite lädt
+- **THEN** verweisen `<meta name="description">` und `<link rel="alternate" type="text/markdown">` auf `/llms.txt`
+
 ### Requirement: Sprache und Speicherung
 Das System SHALL zwischen Deutsch und Englisch umschalten und Sprache, Name, E-Mail und Notiz im `localStorage` halten [frontend/index.html:683-686; frontend/index.html:939-942; frontend/index.html:1356-1357; frontend/index.html:1390-1393].
 
 #### Scenario: Erstaufruf
-- **WHEN** keine Sprache gespeichert ist
+- **WHEN** weder `?lang=` gesetzt noch eine Sprache gespeichert ist
 - **THEN** wird die Browsersprache genommen, wenn es dafür Texte gibt (en, de, es), sonst Englisch [frontend/index.html:1607-1609; frontend/index.html:752; frontend/index.html:800; frontend/index.html:850]
 
 ### Requirement: Rechtliche Links

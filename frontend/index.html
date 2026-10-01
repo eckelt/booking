@@ -7,7 +7,8 @@
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="icon" href="/ne.svg" type="image/svg+xml" />
         <title>Book a call</title>
-        <meta name="description" content="Schedule a call with Nils Eckelt." />
+        <meta name="description" content="Schedule a call with Nils Eckelt. AI agents: see https://book.ecke.lt/llms.txt" />
+        <link rel="alternate" type="text/markdown" title="Booking instructions for AI agents" href="/llms.txt" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://book.ecke.lt/" />
         <meta property="og:title" content="Book time with Nils Eckelt" />
@@ -751,6 +752,10 @@
             // email's link already carried ?duration= (legacy format), or the
             // new bare ?reschedule=<uid> link's duration lookup succeeded.
             let RESCHEDULE_VALID = false;
+            // Prefilled booking link (built by AI agents, see /llms.txt):
+            // ?start=<ISO slot start> preselects that slot and opens the form,
+            // so the person only has to confirm. Consumed once.
+            let PRESET_START = new URLSearchParams(location.search).get("start");
 
             const LANGS = {
                 en: {
@@ -783,6 +788,7 @@
                     confirmReschedule: "Confirm new time",
                     confirming: "Booking…",
                     rescheduleNotice: "Rescheduling your existing booking to this time.",
+                    presetGone: "The suggested time is no longer available. Please pick another one.",
                     errName: "Please enter your name.",
                     errEmail: "Please enter a valid email.",
                     errGeneric: "Something went wrong.",
@@ -832,6 +838,7 @@
                     confirmReschedule: "Neue Zeit bestätigen",
                     confirming: "Wird gebucht…",
                     rescheduleNotice: "Du verschiebst deine bestehende Buchung auf diese Zeit.",
+                    presetGone: "Der vorgeschlagene Termin ist leider nicht mehr frei. Bitte wähle einen anderen.",
                     errName: "Bitte gib deinen Namen ein.",
                     errEmail: "Bitte gib eine gültige E-Mail ein.",
                     errGeneric: "Etwas ist schiefgelaufen.",
@@ -882,6 +889,7 @@
                     confirmReschedule: "Confirmar nuevo horario",
                     confirming: "Reservando…",
                     rescheduleNotice: "Estás reprogramando tu reserva existente a este horario.",
+                    presetGone: "El horario sugerido ya no está disponible. Por favor, elige otro.",
                     errName: "Por favor, introduce tu nombre.",
                     errEmail: "Por favor, introduce un correo válido.",
                     errGeneric: "Algo salió mal.",
@@ -1216,6 +1224,7 @@
                         d.setDate(d.getDate() + 1);
                     }
                     renderCalendar();
+                    openPresetSlot();
                 } catch {
                     // Fallback to per-day requests if the range is rejected.
                     const d = new Date(today);
@@ -1226,9 +1235,45 @@
                 }
             }
 
+            // Jumps to the day of ?start= and opens the booking form for that
+            // slot. Slots are matched by instant, so any offset/Z spelling of
+            // the same time works. A slot that's gone (or out of range) still
+            // lands on its day when bookable, with a short notice.
+            async function openPresetSlot() {
+                if (!PRESET_START) return;
+                const wanted = new Date(PRESET_START).getTime();
+                PRESET_START = null;
+                if (isNaN(wanted)) return;
+                let match = null;
+                for (const slots of Object.values(slotCache)) {
+                    match = (slots || []).find((s) => new Date(s.start).getTime() === wanted);
+                    if (match) break;
+                }
+                const day = match
+                    ? new Date(match.start.slice(0, 10) + "T00:00")
+                    : startOfDay(new Date(wanted));
+                if (isBookable(day)) selectDay(day);
+                const panel = document.getElementById("slotsPanel");
+                if (!match) {
+                    const note = document.createElement("p");
+                    note.className = "reschedule-notice";
+                    note.textContent = T.presetGone;
+                    panel.prepend(note);
+                    return;
+                }
+                // renderSlotsPanel fills the columns in a promise callback.
+                await new Promise((r) => setTimeout(r));
+                const btn = [...panel.querySelectorAll(".slot-btn")]
+                    .find((b) => new Date(b.dataset.start).getTime() === wanted);
+                if (btn) btn.click();
+            }
+
             function pickDuration(d) {
                 DURATION = d;
-                history.replaceState(null, "", `/?duration=${d}`);
+                // Keep any prefill (name, email, notes, …) from the link.
+                const q = new URLSearchParams(location.search);
+                q.set("duration", d);
+                history.replaceState(null, "", `/?${q}`);
                 document.getElementById("durStep").hidden = true;
                 document.getElementById("bookLayout").removeAttribute("hidden");
                 applyLang(document.documentElement.lang);
@@ -1391,7 +1436,7 @@
 
                 let aiEnabled = true;
                 if (showIdentityFields) {
-                    document.getElementById("fNotes").value = localStorage.getItem("booking-notes") || "";
+                    document.getElementById("fNotes").value = params.get("notes") ?? localStorage.getItem("booking-notes") ?? "";
                     document.getElementById("fName").addEventListener("input", (e) => localStorage.setItem("booking-name", e.target.value));
                     document.getElementById("fEmail").addEventListener("input", (e) => localStorage.setItem("booking-email", e.target.value));
                     document.getElementById("fNotes").addEventListener("input", (e) => localStorage.setItem("booking-notes", e.target.value));
@@ -1610,7 +1655,8 @@
 
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
-            applyLang(_sl || (LANGS[_al] ? _al : "en"));
+            const _ql = new URLSearchParams(location.search).get("lang");
+            applyLang((LANGS[_ql] && _ql) || _sl || (LANGS[_al] ? _al : "en"));
 
             function enterBookLayout() {
                 document.getElementById("durStep").hidden = true;

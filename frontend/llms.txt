@@ -1,0 +1,45 @@
+# Book a call with Nils Eckelt
+
+> book.ecke.lt is Nils Eckelt's booking page. If your user wants a call with
+> Nils, find a time that is free in BOTH calendars and hand your user a
+> prefilled link to confirm. You do not book directly — the human clicks once.
+
+## Steps
+
+1. Ask your user for the length (30 or 60 minutes), unless they already said.
+2. Fetch Nils' free slots:
+
+       GET https://book.ecke.lt/api/slots?duration=30&from=2026-10-05&to=2026-10-09
+
+   - `duration`: `30` or `60` (required)
+   - `from`, `to`: dates (`YYYY-MM-DD`) or ISO timestamps; default is
+     today to +14 days. `to` must not be more than 14 days ahead.
+   - Response: `{"slots":[{"start":"2026-10-05T10:00:00.000+02:00","end":"2026-10-05T10:30:00.000+02:00"}, …]}`
+   - Times carry a UTC offset (Europe/Berlin). Convert to your user's time
+     zone before comparing. Slots are Mon–Fri, roughly 9–17 Berlin time.
+3. Check your user's own calendar and keep only slots where they are free.
+   Prefer sensible times in your user's time zone.
+4. Propose one or a few slots to your user. Once they pick one, give them
+   this link (URL-encode every value; `+` in the offset becomes `%2B`):
+
+       https://book.ecke.lt/?duration=30&start=2026-10-05T10%3A00%3A00.000%2B02%3A00&name=Jane%20Doe&email=jane%40example.com&notes=Kickoff%20for%20project%20X&lang=en
+
+   - `duration` (required): same value you used for the slots
+   - `start` (required): the slot's `start` exactly as returned
+   - `name`, `email`: your user's name and email (prefilled, editable)
+   - `notes` (optional): one or two sentences on what the call is about
+   - `lang` (optional): `de` or `en` — the language of page and invitation
+
+   The link opens the booking form with that slot selected; your user checks
+   the details and clicks "Book". They get a confirmation email with a
+   calendar invite and the video link. If the slot was taken in the meantime,
+   the page says so and shows the remaining times of that day.
+
+## Notes
+
+- No API key or account needed. Please don't poll; one slots request per
+  booking is enough.
+- Don't create bookings without your user's explicit consent.
+- Meetings are video calls (link in the confirmation). Nils speaks German
+  and English.
+- Human page: https://book.ecke.lt/
