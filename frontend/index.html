@@ -172,6 +172,22 @@
 
             [hidden] { display: none !important; }
 
+            /* "Find a time with my AI" links (ChatGPT / Claude deep links) */
+            .ai-links {
+                max-width: 480px;
+                margin: 2rem auto 0;
+                padding: 0 1rem;
+                text-align: center;
+                font-size: 0.875rem;
+                color: var(--muted);
+            }
+            .ai-links a {
+                color: var(--primary);
+                text-decoration: none;
+                font-weight: 600;
+            }
+            .ai-links a:hover { text-decoration: underline; }
+
             /* Calendar + slots layout */
             .layout {
                 display: grid;
@@ -727,6 +743,12 @@
                     </p>
                 </div>
             </div>
+            <p class="ai-links" id="aiLinks">
+                <span id="aiLinksLead">Let your AI find a time that fits your calendar:</span>
+                <a id="aiLinkChatGPT" href="https://chatgpt.com/" target="_blank" rel="noopener">ChatGPT</a>
+                &middot;
+                <a id="aiLinkClaude" href="https://claude.ai/new" target="_blank" rel="noopener">Claude</a>
+            </p>
         </div>
         <script>
             let DURATION = (() => {
@@ -763,6 +785,8 @@
                     title30: "Book a 30-minute call",
                     title60: "Book a 60-minute call",
                     durPick: "How long should the call be?",
+                    aiLinksLead: "Let your AI find a time that fits your calendar:",
+                    aiPrompt: (dur) => `Help me book a ${dur ? dur + "-minute " : ""}call with Nils Eckelt. Instructions and his free times: https://book.ecke.lt/ai — compare them with my calendar. If you don't know what the call should be about, ask me briefly (I can also paste Nils' email). Then suggest 2–3 times and a short note for the booking.`,
                     t30: "30 minutes",
                     d30: "A focused conversation",
                     t60: "60 minutes",
@@ -812,6 +836,8 @@
                     title30: "30-Minuten-Gespräch buchen",
                     title60: "60-Minuten-Gespräch buchen",
                     durPick: "Wie lange soll das Gespräch dauern?",
+                    aiLinksLead: "Deine KI findet einen Termin, der in deinen Kalender passt:",
+                    aiPrompt: (dur) => `Hilf mir, ${dur ? "ein " + dur + "-Minuten-Gespräch" : "einen Termin"} mit Nils Eckelt zu buchen. Anleitung und seine freien Zeiten: https://book.ecke.lt/ai – gleiche sie mit meinem Kalender ab. Wenn du nicht weißt, worum es gehen soll, frag mich kurz (ich kann dir auch die Mail von Nils geben). Schlag mir dann 2–3 Zeiten und eine kurze Notiz für die Buchung vor.`,
                     t30: "30 Minuten",
                     d30: "Ein fokussiertes Gespräch",
                     t60: "60 Minuten",
@@ -863,6 +889,8 @@
                     title30: "Reservar llamada de 30 minutos",
                     title60: "Reservar llamada de 60 minutos",
                     durPick: "¿Cuánto tiempo debería durar la llamada?",
+                    aiLinksLead: "Deja que tu IA encuentre un horario que encaje con tu calendario:",
+                    aiPrompt: (dur) => `Ayúdame a reservar ${dur ? "una llamada de " + dur + " minutos" : "una llamada"} con Nils Eckelt. Instrucciones y sus horarios libres: https://book.ecke.lt/ai — compáralos con mi calendario. Si no sabes de qué debería tratar la llamada, pregúntame brevemente (también puedo pegar el correo de Nils). Luego sugiéreme 2–3 horarios y una nota breve para la reserva.`,
                     t30: "30 minutos",
                     d30: "Una conversación enfocada",
                     t60: "60 minutos",
@@ -940,6 +968,7 @@
                 document.getElementById("btnEN").setAttribute("aria-pressed", String(activeLang !== "de"));
                 document.getElementById("prevMonth").setAttribute("aria-label", T.prevMonth);
                 document.getElementById("nextMonth").setAttribute("aria-label", T.nextMonth);
+                renderAiLinks();
                 const imp = document.getElementById("footerImpressum");
                 if (imp) imp.textContent = T.impressum;
                 const ds = document.getElementById("footerDatenschutz");
@@ -947,6 +976,19 @@
                 renderCalendar();
                 if (pairLeft) renderSlotsPanel();
             };
+
+            // Deep links that open a new ChatGPT / Claude chat with a prompt
+            // pointing at /ai (llms.txt). Hidden while rescheduling — that
+            // flow is tied to the signed link, not something an AI can redo.
+            function renderAiLinks() {
+                const box = document.getElementById("aiLinks");
+                if (!box) return;
+                box.hidden = !!RESCHEDULE_UID;
+                document.getElementById("aiLinksLead").textContent = T.aiLinksLead;
+                const q = encodeURIComponent(T.aiPrompt(DURATION));
+                document.getElementById("aiLinkChatGPT").href = `https://chatgpt.com/?q=${q}`;
+                document.getElementById("aiLinkClaude").href = `https://claude.ai/new?q=${q}`;
+            }
 
             const setLang = (lang) => {
                 localStorage.setItem("booking-lang", lang);

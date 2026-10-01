@@ -68,6 +68,10 @@ Das System SHALL unter `/llms.txt` eine Anleitung für KI-Agenten ausliefern (fr
 - **WHEN** ein Agent die Startseite lädt
 - **THEN** verweisen `<meta name="description">` und `<link rel="alternate" type="text/markdown">` auf `/llms.txt`
 
+#### Scenario: Mit eigener KI buchen
+- **WHEN** die Buchungsseite angezeigt wird (nicht beim Umbuchen)
+- **THEN** bietet sie Links `https://chatgpt.com/?q=…` und `https://claude.ai/new?q=…` an, die einen Chat mit einem Prompt in der Seitensprache öffnen (Verweis auf `/ai`, Kalender abgleichen, Anlass erfragen, Zeiten und Notiz vorschlagen; gewählte Dauer wird übernommen) [frontend/index.html, `renderAiLinks`]
+
 #### Scenario: Kurzer Einstieg
 - **WHEN** jemand `https://book.ecke.lt/ai` aufruft (Mail-Signatur)
 - **THEN** liefert Pages per Rewrite (Status 200, keine Weiterleitung) den Inhalt von `/llms.txt` aus [frontend/_redirects]
