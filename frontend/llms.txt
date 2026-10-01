@@ -6,7 +6,8 @@
 
 ## Steps
 
-1. Ask your user for the length (30 or 60 minutes), unless they already said.
+1. Pick the length: 30 minutes by default, 60 if the topic clearly needs
+   it (workshop, deep dive) or your user says so.
 2. Fetch Nils' free slots:
 
        GET https://book.ecke.lt/api/slots?duration=30&from=2026-10-05&to=2026-10-09
@@ -19,15 +20,22 @@
      zone before comparing. Slots are Mon–Fri, roughly 9–17 Berlin time.
 3. Check your user's own calendar and keep only slots where they are free.
    Prefer sensible times in your user's time zone.
-4. Propose one or a few slots to your user. Once they pick one, give them
-   this link (URL-encode every value; `+` in the offset becomes `%2B`):
+4. Work out what the call is about. Usually you already know from the
+   current context (the email thread or conversation that led here):
+   derive it from there. If the purpose is unclear, ask your user in one
+   short question. Draft a note of one or two sentences (topic, goal,
+   relevant links or project names) for Nils to prepare with, and show it
+   to your user together with the slot suggestions.
+5. Propose one or a few slots to your user. Once they pick a slot and are
+   happy with the note, give them this link (URL-encode every value; `+` in the offset becomes `%2B`):
 
        https://book.ecke.lt/?duration=30&start=2026-10-05T10%3A00%3A00.000%2B02%3A00&name=Jane%20Doe&email=jane%40example.com&notes=Kickoff%20for%20project%20X&lang=en
 
    - `duration` (required): same value you used for the slots
    - `start` (required): the slot's `start` exactly as returned
    - `name`, `email`: your user's name and email (prefilled, editable)
-   - `notes` (optional): one or two sentences on what the call is about
+   - `notes`: the note from step 4 (what the call is about); strongly
+     recommended, Nils uses it to prepare and to title the meeting
    - `lang` (optional): `de` or `en` — the language of page and invitation
 
    The link opens the booking form with that slot selected; your user checks
