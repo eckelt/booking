@@ -68,6 +68,10 @@ Das System SHALL unter `/llms.txt` eine Anleitung für KI-Agenten ausliefern (fr
 - **WHEN** ein Agent die Startseite lädt
 - **THEN** verweisen `<meta name="description">` und `<link rel="alternate" type="text/markdown">` auf `/llms.txt`
 
+#### Scenario: Kurzer Einstieg
+- **WHEN** jemand `https://book.ecke.lt/ai` aufruft (Mail-Signatur)
+- **THEN** liefert Pages per Rewrite (Status 200, keine Weiterleitung) den Inhalt von `/llms.txt` aus [frontend/_redirects]
+
 ### Requirement: Sprache und Speicherung
 Das System SHALL zwischen Deutsch und Englisch umschalten und Sprache, Name, E-Mail und Notiz im `localStorage` halten [frontend/index.html:683-686; frontend/index.html:939-942; frontend/index.html:1356-1357; frontend/index.html:1390-1393].
 
