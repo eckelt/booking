@@ -145,6 +145,17 @@ async function handleJoin(rawUid: string | null, url: URL, env: Env): Promise<Re
     );
   }
 
+  const hostSecret = url.searchParams.get("host")?.trim();
+  const expectedSecret = env.HOST_JOIN_SECRET?.trim();
+  const isHost = !!hostSecret && !!expectedSecret && timingSafeEqual(hostSecret, expectedSecret);
+  // The owner's host link needs no `t`; every other join needs a valid
+  // signed token (only the signature is checked — no calendar lookup).
+  if (!isHost && !(await isLinkAuthorized(env, "join", uid, url.searchParams.get("t")))) {
+    return invalidLinkPage();
+  }
+
+  // Meet/Teams only after the link check above, so they get the same
+  // protection as Jitsi.
   const provider = pickVideoProvider(env, url.searchParams.get("via"));
   if (provider !== "jitsi") {
     if (!isConfigured(env, provider)) {
@@ -157,15 +168,6 @@ async function handleJoin(rawUid: string | null, url: URL, env: Env): Promise<Re
         console.error(`[video] ${provider} failed uid=${uid} — using Jitsi: ${(err as Error)?.message ?? err}`);
       }
     }
-  }
-
-  const hostSecret = url.searchParams.get("host")?.trim();
-  const expectedSecret = env.HOST_JOIN_SECRET?.trim();
-  const isHost = !!hostSecret && !!expectedSecret && timingSafeEqual(hostSecret, expectedSecret);
-  // The owner's host link needs no `t`; every other join needs a valid
-  // signed token (only the signature is checked — no calendar lookup).
-  if (!isHost && !(await isLinkAuthorized(env, "join", uid, url.searchParams.get("t")))) {
-    return invalidLinkPage();
   }
 
   const now = new Date();

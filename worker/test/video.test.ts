@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import worker from "../src/index.js";
 import { pickVideoProvider, clearTokenCache } from "../src/video.js";
+import { signLinkToken } from "../src/links.js";
 import { buildIcal, parseOwnEvent, readStoredVideo, setStoredVideo } from "../src/caldav.js";
 import type { Env } from "../src/types.js";
 
@@ -14,6 +15,7 @@ const baseEnv = {
   JAAS_APP_ID: "vpaas-magic-cookie-test",
   JAAS_KEY_ID: "testkey",
   JAAS_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----",
+  LINK_SIGNING_SECRET: "link-secret",
 } as Env;
 
 const googleEnv = {
@@ -68,8 +70,10 @@ function fakeFetch(routes: Record<string, (init: RequestInit) => Response>) {
 
 const EVENT_URL = "https://caldav.fastmail.com/dav/calendars/user/nils@ecke.lt/Nils/radtour.ics";
 
-function join(env: Env, query = "") {
-  return worker.fetch(new Request(`https://join.ecke.lt/radtour${query}`), env, ctx);
+// A properly signed booker join link, plus any extra query (e.g. "&via=jitsi").
+async function join(env: Env, extra = "") {
+  const t = await signLinkToken("link-secret", "join", "radtour");
+  return worker.fetch(new Request(`https://join.ecke.lt/radtour?t=${t}${extra}`), env, ctx);
 }
 
 describe("pickVideoProvider", () => {
@@ -120,12 +124,19 @@ describe("stored meeting link on the event", () => {
 describe("join.ecke.lt with a video provider", () => {
   beforeEach(() => {
     clearTokenCache();
-    // Jitsi fallback signs a JWT — stub the crypto so the fake key works.
+    // Jitsi fallback signs an RS256 JWT — fake that with the dummy key, but
+    // keep real HMAC so signed join links verify.
+    const real = globalThis.crypto;
     vi.stubGlobal("crypto", {
-      randomUUID: globalThis.crypto.randomUUID.bind(globalThis.crypto),
+      randomUUID: real.randomUUID.bind(real),
       subtle: {
-        importKey: vi.fn().mockResolvedValue({} as CryptoKey),
-        sign: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]).buffer),
+        importKey: (fmt: string, ...rest: unknown[]) => fmt === "pkcs8"
+          ? Promise.resolve({} as CryptoKey)
+          : (real.subtle.importKey as (...a: unknown[]) => Promise<CryptoKey>)(fmt, ...rest),
+        sign: (alg: unknown, key: CryptoKey, data: BufferSource) => alg === "HMAC"
+          ? real.subtle.sign(alg, key, data)
+          : Promise.resolve(new Uint8Array([1, 2, 3]).buffer),
+        verify: real.subtle.verify.bind(real.subtle),
       },
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -261,10 +272,18 @@ describe("join.ecke.lt with a video provider", () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
+  it("rejects a forged join link before touching Google", async () => {
+    const fn = vi.fn();
+    vi.stubGlobal("fetch", fn);
+    const res = await worker.fetch(new Request("https://join.ecke.lt/radtour?t=forged"), googleEnv, ctx);
+    expect(res.status).toBe(403);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
   it("?via=jitsi forces Jitsi for one link", async () => {
     const fn = vi.fn();
     vi.stubGlobal("fetch", fn);
-    const res = await join(googleEnv, "?via=jitsi");
+    const res = await join(googleEnv, "&via=jitsi");
     expect(res.headers.get("Location")).toMatch(/^https:\/\/8x8\.vc\//);
     expect(fn).not.toHaveBeenCalled();
   });
