@@ -4,6 +4,7 @@ import { fetchBusy, deleteEvent, getEvent } from "./caldav.js";
 import { workingDayWindow, computeSlots, excludeMovingEvent } from "./availability.js";
 import { validateBookingRequest, createBooking } from "./booking.js";
 import { generateJitsiUrl } from "./jitsi.js";
+import { pickVideoProvider, isConfigured, resolveMeetingUrl } from "./video.js";
 import { FEEDBACK_HOST, handleFeedback } from "./feedback.js";
 import { isLinkAuthorized } from "./links.js";
 
@@ -143,6 +144,7 @@ async function handleJoin(rawUid: string | null, url: URL, env: Env): Promise<Re
       400
     );
   }
+
   const hostSecret = url.searchParams.get("host")?.trim();
   const expectedSecret = env.HOST_JOIN_SECRET?.trim();
   const isHost = !!hostSecret && !!expectedSecret && timingSafeEqual(hostSecret, expectedSecret);
@@ -150,6 +152,22 @@ async function handleJoin(rawUid: string | null, url: URL, env: Env): Promise<Re
   // signed token (only the signature is checked — no calendar lookup).
   if (!isHost && !(await isLinkAuthorized(env, "join", uid, url.searchParams.get("t")))) {
     return invalidLinkPage();
+  }
+
+  // Meet/Teams only after the link check above, so they get the same
+  // protection as Jitsi.
+  const provider = pickVideoProvider(env, url.searchParams.get("via"));
+  if (provider !== "jitsi") {
+    if (!isConfigured(env, provider)) {
+      console.error(`[video] ${provider} selected but its credentials are not set — using Jitsi`);
+    } else {
+      try {
+        const meetingUrl = await resolveMeetingUrl(env, uid, provider);
+        if (meetingUrl) return Response.redirect(meetingUrl, 302);
+      } catch (err) {
+        console.error(`[video] ${provider} failed uid=${uid} — using Jitsi: ${(err as Error)?.message ?? err}`);
+      }
+    }
   }
 
   const now = new Date();

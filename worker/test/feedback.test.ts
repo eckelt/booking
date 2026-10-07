@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import worker from "../src/index.js";
 import {
   findEvent,
@@ -136,6 +136,16 @@ describe("encodeHeader", () => {
 });
 
 describe("feedback.ecke.lt routing", () => {
+  // The routes use the real "bmi" event, which is only open until early
+  // October 2026 — pin the clock inside that window so the tests don't expire.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T10:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("serves the prefilled German form for /bmi", async () => {
     const res = await get("/bmi");
     expect(res.status).toBe(200);
