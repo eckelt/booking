@@ -7,7 +7,8 @@
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="icon" href="/ne.svg" type="image/svg+xml" />
         <title>Book a call</title>
-        <meta name="description" content="Schedule a call with Nils Eckelt." />
+        <meta name="description" content="Schedule a call with Nils Eckelt. AI agents: see https://book.ecke.lt/llms.txt" />
+        <link rel="alternate" type="text/markdown" title="Booking instructions for AI agents" href="/llms.txt" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://book.ecke.lt/" />
         <meta property="og:title" content="Book time with Nils Eckelt" />
@@ -170,6 +171,22 @@
             }
 
             [hidden] { display: none !important; }
+
+            /* "Find a time with my AI" links (ChatGPT / Claude deep links) */
+            .ai-links {
+                max-width: 480px;
+                margin: 2rem auto 0;
+                padding: 0 1rem;
+                text-align: center;
+                font-size: 0.875rem;
+                color: var(--muted);
+            }
+            .ai-links a {
+                color: var(--primary);
+                text-decoration: none;
+                font-weight: 600;
+            }
+            .ai-links a:hover { text-decoration: underline; }
 
             /* Calendar + slots layout */
             .layout {
@@ -726,6 +743,12 @@
                     </p>
                 </div>
             </div>
+            <p class="ai-links" id="aiLinks">
+                <span id="aiLinksLead">Let your AI find a time that fits your calendar:</span>
+                <a id="aiLinkChatGPT" href="https://chatgpt.com/" target="_blank" rel="noopener">ChatGPT</a>
+                &middot;
+                <a id="aiLinkClaude" href="https://claude.ai/new" target="_blank" rel="noopener">Claude</a>
+            </p>
         </div>
         <script>
             let DURATION = (() => {
@@ -742,11 +765,19 @@
             // disagree on where slot boundaries fall and a picked slot can come
             // back "no longer available" even though nothing else changed.
             const RESCHEDULE_UID = new URLSearchParams(location.search).get("reschedule") || "";
+            // Signed token from the reschedule link in the confirmation mail;
+            // passed through to /api/reschedule-info and /api/book as ?t=.
+            const RESCHEDULE_TOKEN = new URLSearchParams(location.search).get("t");
+            const rescheduleTokenQuery = RESCHEDULE_TOKEN !== null ? `t=${encodeURIComponent(RESCHEDULE_TOKEN)}` : "";
             let rescheduleParam = RESCHEDULE_UID ? `&reschedule=${encodeURIComponent(RESCHEDULE_UID)}` : "";
             // True once a reschedule can actually proceed: either an older
             // email's link already carried ?duration= (legacy format), or the
             // new bare ?reschedule=<uid> link's duration lookup succeeded.
             let RESCHEDULE_VALID = false;
+            // Prefilled booking link (built by AI agents, see /llms.txt):
+            // ?start=<ISO slot start> preselects that slot and opens the form,
+            // so the person only has to confirm. Consumed once.
+            let PRESET_START = new URLSearchParams(location.search).get("start");
 
             const LANGS = {
                 en: {
@@ -754,6 +785,8 @@
                     title30: "Book a 30-minute call",
                     title60: "Book a 60-minute call",
                     durPick: "How long should the call be?",
+                    aiLinksLead: "Let your AI find a time that fits your calendar:",
+                    aiPrompt: (dur) => `Help me book a ${dur ? dur + "-minute " : ""}call with Nils Eckelt. Instructions and his free times: https://book.ecke.lt/ai — compare them with my calendar. If you don't know what the call should be about, ask me briefly (I can also paste Nils' email). Then suggest 2–3 times and a short note for the booking.`,
                     t30: "30 minutes",
                     d30: "A focused conversation",
                     t60: "60 minutes",
@@ -779,6 +812,7 @@
                     confirmReschedule: "Confirm new time",
                     confirming: "Booking…",
                     rescheduleNotice: "Rescheduling your existing booking to this time.",
+                    presetGone: "The suggested time is no longer available. Please pick another one.",
                     errName: "Please enter your name.",
                     errEmail: "Please enter a valid email.",
                     errGeneric: "Something went wrong.",
@@ -802,6 +836,8 @@
                     title30: "30-Minuten-Gespräch buchen",
                     title60: "60-Minuten-Gespräch buchen",
                     durPick: "Wie lange soll das Gespräch dauern?",
+                    aiLinksLead: "Deine KI findet einen Termin, der in deinen Kalender passt:",
+                    aiPrompt: (dur) => `Hilf mir, ${dur ? "ein " + dur + "-Minuten-Gespräch" : "einen Termin"} mit Nils Eckelt zu buchen. Anleitung und seine freien Zeiten: https://book.ecke.lt/ai – gleiche sie mit meinem Kalender ab. Wenn du nicht weißt, worum es gehen soll, frag mich kurz (ich kann dir auch die Mail von Nils geben). Schlag mir dann 2–3 Zeiten und eine kurze Notiz für die Buchung vor.`,
                     t30: "30 Minuten",
                     d30: "Ein fokussiertes Gespräch",
                     t60: "60 Minuten",
@@ -828,6 +864,7 @@
                     confirmReschedule: "Neue Zeit bestätigen",
                     confirming: "Wird gebucht…",
                     rescheduleNotice: "Du verschiebst deine bestehende Buchung auf diese Zeit.",
+                    presetGone: "Der vorgeschlagene Termin ist leider nicht mehr frei. Bitte wähle einen anderen.",
                     errName: "Bitte gib deinen Namen ein.",
                     errEmail: "Bitte gib eine gültige E-Mail ein.",
                     errGeneric: "Etwas ist schiefgelaufen.",
@@ -852,6 +889,8 @@
                     title30: "Reservar llamada de 30 minutos",
                     title60: "Reservar llamada de 60 minutos",
                     durPick: "¿Cuánto tiempo debería durar la llamada?",
+                    aiLinksLead: "Deja que tu IA encuentre un horario que encaje con tu calendario:",
+                    aiPrompt: (dur) => `Ayúdame a reservar ${dur ? "una llamada de " + dur + " minutos" : "una llamada"} con Nils Eckelt. Instrucciones y sus horarios libres: https://book.ecke.lt/ai — compáralos con mi calendario. Si no sabes de qué debería tratar la llamada, pregúntame brevemente (también puedo pegar el correo de Nils). Luego sugiéreme 2–3 horarios y una nota breve para la reserva.`,
                     t30: "30 minutos",
                     d30: "Una conversación enfocada",
                     t60: "60 minutos",
@@ -878,6 +917,7 @@
                     confirmReschedule: "Confirmar nuevo horario",
                     confirming: "Reservando…",
                     rescheduleNotice: "Estás reprogramando tu reserva existente a este horario.",
+                    presetGone: "El horario sugerido ya no está disponible. Por favor, elige otro.",
                     errName: "Por favor, introduce tu nombre.",
                     errEmail: "Por favor, introduce un correo válido.",
                     errGeneric: "Algo salió mal.",
@@ -928,6 +968,7 @@
                 document.getElementById("btnEN").setAttribute("aria-pressed", String(activeLang !== "de"));
                 document.getElementById("prevMonth").setAttribute("aria-label", T.prevMonth);
                 document.getElementById("nextMonth").setAttribute("aria-label", T.nextMonth);
+                renderAiLinks();
                 const imp = document.getElementById("footerImpressum");
                 if (imp) imp.textContent = T.impressum;
                 const ds = document.getElementById("footerDatenschutz");
@@ -935,6 +976,19 @@
                 renderCalendar();
                 if (pairLeft) renderSlotsPanel();
             };
+
+            // Deep links that open a new ChatGPT / Claude chat with a prompt
+            // pointing at /ai (llms.txt). Hidden while rescheduling — that
+            // flow is tied to the signed link, not something an AI can redo.
+            function renderAiLinks() {
+                const box = document.getElementById("aiLinks");
+                if (!box) return;
+                box.hidden = !!RESCHEDULE_UID;
+                document.getElementById("aiLinksLead").textContent = T.aiLinksLead;
+                const q = encodeURIComponent(T.aiPrompt(DURATION));
+                document.getElementById("aiLinkChatGPT").href = `https://chatgpt.com/?q=${q}`;
+                document.getElementById("aiLinkClaude").href = `https://claude.ai/new?q=${q}`;
+            }
 
             const setLang = (lang) => {
                 localStorage.setItem("booking-lang", lang);
@@ -1212,6 +1266,7 @@
                         d.setDate(d.getDate() + 1);
                     }
                     renderCalendar();
+                    openPresetSlot();
                 } catch {
                     // Fallback to per-day requests if the range is rejected.
                     const d = new Date(today);
@@ -1222,9 +1277,45 @@
                 }
             }
 
+            // Jumps to the day of ?start= and opens the booking form for that
+            // slot. Slots are matched by instant, so any offset/Z spelling of
+            // the same time works. A slot that's gone (or out of range) still
+            // lands on its day when bookable, with a short notice.
+            async function openPresetSlot() {
+                if (!PRESET_START) return;
+                const wanted = new Date(PRESET_START).getTime();
+                PRESET_START = null;
+                if (isNaN(wanted)) return;
+                let match = null;
+                for (const slots of Object.values(slotCache)) {
+                    match = (slots || []).find((s) => new Date(s.start).getTime() === wanted);
+                    if (match) break;
+                }
+                const day = match
+                    ? new Date(match.start.slice(0, 10) + "T00:00")
+                    : startOfDay(new Date(wanted));
+                if (isBookable(day)) selectDay(day);
+                const panel = document.getElementById("slotsPanel");
+                if (!match) {
+                    const note = document.createElement("p");
+                    note.className = "reschedule-notice";
+                    note.textContent = T.presetGone;
+                    panel.prepend(note);
+                    return;
+                }
+                // renderSlotsPanel fills the columns in a promise callback.
+                await new Promise((r) => setTimeout(r));
+                const btn = [...panel.querySelectorAll(".slot-btn")]
+                    .find((b) => new Date(b.dataset.start).getTime() === wanted);
+                if (btn) btn.click();
+            }
+
             function pickDuration(d) {
                 DURATION = d;
-                history.replaceState(null, "", `/?duration=${d}`);
+                // Keep any prefill (name, email, notes, …) from the link.
+                const q = new URLSearchParams(location.search);
+                q.set("duration", d);
+                history.replaceState(null, "", `/?${q}`);
                 document.getElementById("durStep").hidden = true;
                 document.getElementById("bookLayout").removeAttribute("hidden");
                 applyLang(document.documentElement.lang);
@@ -1387,7 +1478,7 @@
 
                 let aiEnabled = true;
                 if (showIdentityFields) {
-                    document.getElementById("fNotes").value = localStorage.getItem("booking-notes") || "";
+                    document.getElementById("fNotes").value = params.get("notes") ?? localStorage.getItem("booking-notes") ?? "";
                     document.getElementById("fName").addEventListener("input", (e) => localStorage.setItem("booking-name", e.target.value));
                     document.getElementById("fEmail").addEventListener("input", (e) => localStorage.setItem("booking-email", e.target.value));
                     document.getElementById("fNotes").addEventListener("input", (e) => localStorage.setItem("booking-notes", e.target.value));
@@ -1443,7 +1534,7 @@
                             // A valid reschedule submits only the uid + new
                             // time — duration/name/email travel with the
                             // event itself, not this request.
-                            const res = await fetch(`${API}/book`, {
+                            const res = await fetch(`${API}/book${isReschedule && rescheduleTokenQuery ? `?${rescheduleTokenQuery}` : ""}`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
@@ -1606,7 +1697,8 @@
 
             const _sl = localStorage.getItem("booking-lang");
             const _al = navigator.language?.slice(0, 2).toLowerCase();
-            applyLang(_sl || (LANGS[_al] ? _al : "en"));
+            const _ql = new URLSearchParams(location.search).get("lang");
+            applyLang((LANGS[_ql] && _ql) || _sl || (LANGS[_al] ? _al : "en"));
 
             function enterBookLayout() {
                 document.getElementById("durStep").hidden = true;
@@ -1617,7 +1709,7 @@
             if (RESCHEDULE_UID && !DURATION) {
                 // Simplified link: just the uid, no ?duration=. Look up how
                 // long the original booking was before we can show a calendar.
-                fetch(`${API}/reschedule-info?uid=${encodeURIComponent(RESCHEDULE_UID)}`)
+                fetch(`${API}/reschedule-info?uid=${encodeURIComponent(RESCHEDULE_UID)}${rescheduleTokenQuery ? `&${rescheduleTokenQuery}` : ""}`)
                     .then((r) => (r.ok ? r.json() : Promise.reject()))
                     .then((data) => {
                         DURATION = data.duration;

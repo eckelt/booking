@@ -38,6 +38,7 @@
 |---|---|
 | `CALDAV_USERNAME` | Fastmail login (`nils@ecke.lt`) |
 | `CALDAV_PASSWORD` | Fastmail app password with CalDAV read/write |
+| `LINK_SIGNING_SECRET` | HMAC key for the signed cancel/reschedule/join links (`t` parameter). Links without `t` are accepted until 2026-10-31 (Europe/Berlin), then rejected; without this secret links are sent unsigned. |
 | `ANTHROPIC_API_KEY` | Anthropic API key — powers meeting-title generation (Claude Haiku). Optional; without it titles use the plain fallback. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` | Google Meet links (see docs/video-providers.md). Without them joins use Jitsi. |
 | `MS_CLIENT_ID` / `MS_TENANT_ID` / `MS_REFRESH_TOKEN` (+ optional `MS_CLIENT_SECRET`) | Teams links, only needed with `VIDEO_PROVIDER = "teams"` |
@@ -49,6 +50,11 @@
 |---|---|
 | `OWNER_NAME` | Nils Eckelt |
 | `OWNER_EMAIL` | nils@ecke.lt |
+
+**KV namespace bindings** (in `wrangler.toml`):
+| Binding | Purpose |
+|---|---|
+| `RATE_LIMIT` | Per-IP counters for `/api/book` (5/h) and `/api/cancel` (10/h); see `checkRateLimit` in `worker/src/index.ts`. |
 | `CALDAV_CALENDAR_NILS` | `bd0ce304-f055-4524-9273-80a7d8cee9f1` (Fastmail UUID for "Nils") |
 | `CALDAV_CALENDAR_OHANA` | `0C692FAB-66C9-454F-B51D-D076560588DB` (Fastmail UUID for "Ohana") |
 

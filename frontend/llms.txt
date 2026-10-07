@@ -1,0 +1,56 @@
+# Book a call with Nils Eckelt
+
+> book.ecke.lt is Nils Eckelt's booking page. If your user wants a call with
+> Nils, find a time that is free in BOTH calendars and hand your user a
+> prefilled link to confirm. You do not book directly — the human clicks once.
+
+## Steps
+
+1. Pick the length: 30 minutes by default, 60 if the topic clearly needs
+   it (workshop, deep dive) or your user says so.
+2. Fetch Nils' free slots (replace every `{…}` with real values; never
+   reuse example values):
+
+       GET https://book.ecke.lt/api/slots?duration={DURATION}&from={FROM_DATE}&to={TO_DATE}
+
+   - `duration`: `30` or `60` (required)
+   - `from`, `to` (optional): dates `YYYY-MM-DD` or ISO timestamps, from
+     today onwards; default is today to +14 days. `to` must not be more
+     than 14 days ahead.
+   - Response: `{"slots":[{"start":"YYYY-MM-DDThh:mm:00.000+hh:mm","end":"…"}, …]}`
+   - Times carry a UTC offset (Europe/Berlin). Convert to your user's time
+     zone before comparing. Slots are Mon–Fri, roughly 9–17 Berlin time.
+3. Check your user's own calendar and keep only slots where they are free.
+   Prefer sensible times in your user's time zone.
+4. Work out what the call is about. Usually you already know from the
+   current context (the email thread or conversation that led here):
+   derive it from there. If the purpose is unclear, ask your user in one
+   short question. Draft a note of one or two sentences (topic, goal,
+   relevant links or project names) for Nils to prepare with, and show it
+   to your user together with the slot suggestions.
+5. Propose one or a few slots to your user. Once they pick a slot and are
+   happy with the note, give them this link (URL-encode every value; `+` in the offset becomes `%2B`):
+
+       https://book.ecke.lt/?duration={DURATION}&start={SLOT_START}&name={NAME}&email={EMAIL}&notes={NOTE}&lang={LANG}
+
+   - `{DURATION}` (required): same value you used for the slots
+   - `{SLOT_START}` (required): the chosen slot's `start` exactly as
+     returned, URL-encoded (e.g. `:` → `%3A`, `+` → `%2B`)
+   - `{NAME}`, `{EMAIL}`: your user's name and email (prefilled, editable)
+   - `{NOTE}`: the note from step 4 (what the call is about); strongly
+     recommended, Nils uses it to prepare and to title the meeting
+   - `{LANG}` (optional): `de` or `en` — the language of page and invitation
+
+   The link opens the booking form with that slot selected; your user checks
+   the details and clicks "Book". They get a confirmation email with a
+   calendar invite and the video link. If the slot was taken in the meantime,
+   the page says so and shows the remaining times of that day.
+
+## Notes
+
+- No API key or account needed. Please don't poll; one slots request per
+  booking is enough.
+- Don't create bookings without your user's explicit consent.
+- Meetings are video calls (link in the confirmation). Nils speaks German
+  and English.
+- Human page: https://book.ecke.lt/

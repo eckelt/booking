@@ -36,8 +36,15 @@ OWNER_MAX_HOUR = "17"
 # (see docs/video-providers.md)
 VIDEO_PROVIDER = "google"
 # JAAS_PRIVATE_KEY: stored as Cloudflare Worker secret
-# To re-enable rate limiting: run `wrangler kv namespace create RATE_LIMIT`,
-# then add: [[kv_namespaces]] / binding = "RATE_LIMIT" / id = "<id from above>"
+# LINK_SIGNING_SECRET: stored as Cloudflare Worker secret — HMAC key for the
+# signed cancel/reschedule/join links (query parameter `t`, see worker/src/links.ts).
+# Set with: npx wrangler secret put LINK_SIGNING_SECRET
+
+# Rate limiting (worker/src/index.ts, checkRateLimit): per-IP counters for
+# /api/book (5/h) and /api/cancel (10/h).
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "1c475e7685ca4944a12dcc318f09ec91"
 
 [[routes]]
 pattern = "book.ecke.lt/api/*"

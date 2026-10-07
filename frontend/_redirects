@@ -1,0 +1,3 @@
+# Short, readable entry point for AI assistants (email signature).
+# 200 = rewrite: served directly, no redirect for agents to follow.
+/ai  /llms.txt  200
