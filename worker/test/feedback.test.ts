@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import worker from "../src/index.js";
 import {
   findEvent,
@@ -136,6 +136,15 @@ describe("encodeHeader", () => {
 });
 
 describe("feedback.ecke.lt routing", () => {
+  // Pin the clock so the /bmi form counts as open regardless of today's date.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-22T12:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("serves the prefilled German form for /bmi", async () => {
     const res = await get("/bmi");
     expect(res.status).toBe(200);
@@ -144,6 +153,14 @@ describe("feedback.ecke.lt routing", () => {
     expect(html).toContain('<html lang="de">');
     expect(html).toContain("Ich bleibe lieber anonym");
     expect(html).toContain('"slug":"bmi"');
+  });
+
+  it("accepts the uppercase URL printed in QR codes", async () => {
+    const res = await get("/BUENTING1");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Agentic Enablement Bünting Gruppe 1");
+    expect(html).toContain('"slug":"buenting1"');
   });
 
   it("serves a general form at / in the browser's language", async () => {
