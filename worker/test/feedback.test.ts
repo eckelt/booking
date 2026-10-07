@@ -156,6 +156,14 @@ describe("feedback.ecke.lt routing", () => {
     expect(html).toContain('"slug":"bmi"');
   });
 
+  it("accepts the uppercase URL printed in QR codes", async () => {
+    const res = await get("/BUENTING1");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Agentic Enablement Bünting Gruppe 1");
+    expect(html).toContain('"slug":"buenting1"');
+  });
+
   it("serves a general form at / in the browser's language", async () => {
     const res = await get("/", { "Accept-Language": "en-US,en;q=0.9" });
     const html = await res.text();
