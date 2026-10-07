@@ -16,6 +16,11 @@
   form's DE/EN toggle. On a slug collision the write tries pretty adjective
   variants ("Heiterer Termin mit …") before falling back to an invisible short
   suffix, so the Jitsi room and CalDAV filename stay unique without ugly links.
+- Video provider switch: `VIDEO_PROVIDER` in `wrangler.toml` — `google`
+  (default, Google Meet), `teams` or `jitsi`. `join.ecke.lt/<uid>` creates the
+  Meet/Teams meeting on first click and stores it on the event; falls back to
+  Jitsi when not configured or on errors. `?via=jitsi` forces Jitsi for one
+  link. Setup: [docs/video-providers.md](docs/video-providers.md).
 
 ## What's pending
 
@@ -35,6 +40,8 @@
 | `CALDAV_PASSWORD` | Fastmail app password with CalDAV read/write |
 | `LINK_SIGNING_SECRET` | HMAC key for the signed cancel/reschedule/join links (`t` parameter). Links without `t` are accepted until 2026-10-31 (Europe/Berlin), then rejected; without this secret links are sent unsigned. |
 | `ANTHROPIC_API_KEY` | Anthropic API key — powers meeting-title generation (Claude Haiku). Optional; without it titles use the plain fallback. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REFRESH_TOKEN` | Google Meet links (see docs/video-providers.md). Without them joins use Jitsi. |
+| `MS_CLIENT_ID` / `MS_TENANT_ID` / `MS_REFRESH_TOKEN` (+ optional `MS_CLIENT_SECRET`) | Teams links, only needed with `VIDEO_PROVIDER = "teams"` |
 | `SMTP_USERNAME` | Fastmail login — **now obsolete**, can be deleted |
 | `SMTP_PASSWORD` | Fastmail SMTP app password — **now obsolete**, can be deleted |
 

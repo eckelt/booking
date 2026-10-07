@@ -18,6 +18,20 @@ export interface Env {
   JAAS_APP_ID: string;
   JAAS_KEY_ID: string;
   JAAS_PRIVATE_KEY: string;
+  // Video service behind join.ecke.lt: "google" (default), "teams" or "jitsi".
+  // Falls back to Jitsi whenever the chosen one isn't configured or fails.
+  VIDEO_PROVIDER?: string;
+  // Google Meet: OAuth client + refresh token of the owner's Google account
+  // (scope meetings.space.created). See scripts/oauth-google.mjs.
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  GOOGLE_REFRESH_TOKEN?: string;
+  // Microsoft Teams: Entra app + refresh token (OnlineMeetings.ReadWrite) of a
+  // work/school M365 account. See scripts/oauth-microsoft.mjs.
+  MS_CLIENT_ID?: string;
+  MS_CLIENT_SECRET?: string;
+  MS_REFRESH_TOKEN?: string;
+  MS_TENANT_ID?: string;
   HOST_JOIN_SECRET?: string;
   // HMAC key for the signed booking links (cancel, reschedule, join; query
   // parameter `t`). Worker secret; see links.ts.

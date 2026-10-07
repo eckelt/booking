@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import worker from "../src/index.js";
 import {
   findEvent,
@@ -136,10 +136,11 @@ describe("encodeHeader", () => {
 });
 
 describe("feedback.ecke.lt routing", () => {
-  // Pin the clock so the /bmi form counts as open regardless of today's date.
+  // The routes use the real "bmi" event, which is only open until early
+  // October 2026 — pin the clock inside that window so the tests don't expire.
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-22T12:00:00Z"));
+    vi.setSystemTime(new Date("2026-09-25T10:00:00Z"));
   });
   afterEach(() => {
     vi.useRealTimers();

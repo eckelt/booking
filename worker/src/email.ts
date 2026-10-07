@@ -150,7 +150,7 @@ Email: ${p.bookerEmail}
 Date:  ${formatDate(p.start)}
 Time:  ${formatTime(p.start)} – ${formatTime(p.end)} (Europe/Berlin)
 
-Jitsi: ${p.jitsiUrl}
+Video: ${p.jitsiUrl}
 
 Notes:
 ${p.notes || "—"}

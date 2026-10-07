@@ -87,6 +87,24 @@ export async function putEvent(
   }
 }
 
+// A meeting link created lazily on first join (Google Meet / Teams, see
+// video.ts) and remembered on the event itself, so both participants — and
+// every later click — land in the same meeting.
+export interface StoredVideo {
+  provider: string;
+  url: string;
+}
+
+export interface OwnEvent {
+  title: string;
+  start: Date;
+  end: Date;
+  notes: string;
+  name: string;
+  email: string;
+  video: StoredVideo | null;
+}
+
 // Look up an existing event by its known CalDAV uid — used when rescheduling
 // so the move can reuse the same resource (same uid ⇒ same Jitsi room/link)
 // instead of creating a new one and deleting the old. Returns null on 404
@@ -95,7 +113,18 @@ export async function getEvent(
   env: Env,
   uid: string,
   fetcher: typeof fetch = fetch
-): Promise<{ title: string; start: Date; end: Date; notes: string; name: string; email: string } | null> {
+): Promise<OwnEvent | null> {
+  const raw = await getEventRaw(env, uid, fetcher);
+  return raw ? parseOwnEvent(raw.ical) : null;
+}
+
+// Fetch the event's ICS as-is (unfolded), plus its ETag so a later
+// putEventRaw() can refuse to clobber a concurrent change.
+export async function getEventRaw(
+  env: Env,
+  uid: string,
+  fetcher: typeof fetch = fetch
+): Promise<{ ical: string; etag: string | null } | null> {
   const url = calendarUrl(env, env.CALDAV_CALENDAR_NILS) + `${uid}.ics`;
   const res = await fetcher(url, {
     method: "GET",
@@ -106,9 +135,37 @@ export async function getEvent(
     const rbody = await res.text().catch(() => "");
     throw new Error(`CalDAV GET failed: ${res.status} url=${url} body=${rbody.slice(0, 300)}`);
   }
+  return { ical: unfoldIcal(await res.text()), etag: res.headers.get("ETag") };
+}
 
-  const ical = await res.text();
-  const [vevent] = splitVevents(ical);
+// Write back an event read via getEventRaw(). With an ETag, the PUT only
+// succeeds if nobody changed the resource in between (412 ⇒ ConflictError).
+export async function putEventRaw(
+  env: Env,
+  uid: string,
+  ical: string,
+  etag: string | null,
+  fetcher: typeof fetch = fetch
+): Promise<void> {
+  const url = calendarUrl(env, env.CALDAV_CALENDAR_NILS) + `${uid}.ics`;
+  const res = await fetcher(url, {
+    method: "PUT",
+    headers: {
+      Authorization: authHeader(env),
+      "Content-Type": "text/calendar; charset=utf-8",
+      ...(etag ? { "If-Match": etag } : {}),
+    },
+    body: ical,
+  });
+  if (res.status === 412) throw new ConflictError();
+  if (!res.ok) {
+    const rbody = await res.text().catch(() => "");
+    throw new Error(`CalDAV PUT failed: ${res.status} url=${url} body=${rbody.slice(0, 300)}`);
+  }
+}
+
+export function parseOwnEvent(ical: string): OwnEvent | null {
+  const [vevent] = splitVevents(unfoldIcal(ical));
   if (!vevent) return null;
 
   const interval = parseVevent(vevent);
@@ -122,7 +179,49 @@ export async function getEvent(
 
   const attendee = parseOwnAttendee(vevent);
 
-  return { title, start: interval.start, end: interval.end, notes, name: attendee?.name ?? "", email: attendee?.email ?? "" };
+  return {
+    title,
+    start: interval.start,
+    end: interval.end,
+    notes,
+    name: attendee?.name ?? "",
+    email: attendee?.email ?? "",
+    video: readStoredVideo(vevent),
+  };
+}
+
+// X-VIDEO-URL;X-PROVIDER=google:https://meet.google.com/abc-defg-hij
+export function readStoredVideo(ical: string): StoredVideo | null {
+  const line = getIcalLine(unfoldIcal(ical), "X-VIDEO-URL");
+  if (!line) return null;
+  const provider = /;X-PROVIDER=([\w-]+)/.exec(line.slice(0, line.indexOf(":")))?.[1];
+  const url = getIcalValue(line);
+  if (!provider || !/^https:\/\//.test(url)) return null;
+  return { provider, url };
+}
+
+function videoLine(video: StoredVideo): string {
+  return `X-VIDEO-URL;X-PROVIDER=${video.provider}:${video.url.replace(/[\r\n]/g, "")}`;
+}
+
+// Replace (or add) the stored meeting link on the event's first VEVENT. It
+// goes in front of the VALARM so it stays a property of the event itself.
+export function setStoredVideo(ical: string, video: StoredVideo): string {
+  const lines = unfoldIcal(ical)
+    .split(/\r?\n/)
+    .filter((l) => !/^X-VIDEO-URL[;:]/.test(l));
+  const begin = lines.findIndex((l) => l.trim() === "BEGIN:VEVENT");
+  const at = lines.findIndex(
+    (l, i) => i > begin && ["BEGIN:VALARM", "END:VEVENT"].includes(l.trim())
+  );
+  if (begin === -1 || at === -1) throw new Error("event has no VEVENT to attach the meeting link to");
+  lines.splice(at, 0, videoLine(video));
+  return lines.join("\r\n");
+}
+
+// RFC 5545 line folding: a CRLF followed by a space/tab continues the line.
+function unfoldIcal(ical: string): string {
+  return ical.replace(/\r?\n[ \t]/g, "");
 }
 
 // Pull the booker's name/email back out of the ATTENDEE line we generated
@@ -167,6 +266,8 @@ export function buildIcal(params: {
   ownerEmail: string;
   ownerName: string;
   bookerEmail: string;
+  // A meeting link already created for this event (kept across a reschedule).
+  video?: StoredVideo | null;
 }): string {
   const fmt = (d: Date) =>
     d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -208,6 +309,7 @@ export function buildIcal(params: {
     `ORGANIZER;CN=${cn(params.ownerName)};SCHEDULE-AGENT=NONE:mailto:${params.ownerEmail}`,
     `ATTENDEE;CN=${cn(params.name)};SCHEDULE-AGENT=NONE:mailto:${params.bookerEmail}`,
     `X-JITSI-URL:${params.jitsiUrl}`,
+    ...(params.video ? [videoLine(params.video)] : []),
     // Reminder 10 minutes before the call. Stays last inside the VEVENT so the
     // event's own DESCRIPTION line is still the first one getIcalLine() finds.
     "BEGIN:VALARM",
